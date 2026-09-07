@@ -89,7 +89,7 @@ acceptance:
 verification:
   - export PATH="/opt/homebrew/bin:$PATH" && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
   - export PATH="/opt/homebrew/bin:$PATH" && cmake --build build -j8
-  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/LimitOrderBookTests --gtest_color=no --gtest_output=xml:.agent/results/LOB-001-unit.xml > .agent/results/LOB-001-unit.log 2>&1; code=$?; echo "LimitOrderBookTests exit=$code"; if [ $code -ge 128 ]; then echo "CRASH or SIGNAL - gate FAIL"; exit 1; fi; exit 0'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/LimitOrderBookTests --gtest_color=no --gtest_output=xml:.agent/results/LOB-001-unit.xml > .agent/results/LOB-001-unit.log 2>&1; code=$?; echo "LimitOrderBookTests exit=$code"; if [ $code -ge 128 ]; then echo "CRASH or SIGNAL - gate FAIL"; exit 1; fi; exit 0'
   - test -f docs/environment.md && test -f docs/baseline-tests.md && test -f docs/structure.md
   - git log --oneline -3
 

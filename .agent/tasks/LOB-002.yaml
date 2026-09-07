@@ -133,7 +133,7 @@ acceptance:
 
 verification:
   - export PATH="/opt/homebrew/bin:$PATH" && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8
-  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/LimitOrderBookTests --gtest_color=no > .agent/results/LOB-002-upstream.log 2>&1; echo "upstream-suite exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/LimitOrderBookTests --gtest_color=no > .agent/results/LOB-002-upstream.log 2>&1; echo "upstream-suite exit=$?"'
   - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/EngineCorrectnessTests --gtest_color=no --gtest_output=xml:.agent/results/LOB-002-engine.xml > .agent/results/LOB-002-engine.log 2>&1; echo "engine-suite exit=$?"'
   - 'export PATH="/opt/homebrew/bin:$PATH"; cmake -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" && cmake --build build-asan -j8'
   - 'export PATH="/opt/homebrew/bin:$PATH"; ASAN_OPTIONS=detect_leaks=0 ./build-asan/EngineCorrectnessTests --gtest_color=no > .agent/results/LOB-002-engine-asan.log 2>&1; echo "asan-engine exit=$?"'
