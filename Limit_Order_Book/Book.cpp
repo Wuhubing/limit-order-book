@@ -9,7 +9,10 @@
 Book::Book() : buyTree(nullptr), sellTree(nullptr), lowestSell(nullptr), highestBuy(nullptr), 
             stopBuyTree(nullptr), stopSellTree(nullptr), highestStopSell(nullptr), lowestStopBuy(nullptr){}
 
-// When deleting the book need to ensure all used memory is freed
+// When deleting the book need to ensure all used memory is freed exactly once.
+// Orders are deleted via the orderMap (complete index of live orders). Levels are
+// deleted via their trees in post-order (children before parents) so no freed node
+// is ever dereferenced; ~Limit is inert and relies on no tree pointers.
 Book::~Book()
 {
     for (auto& [id, order] : orderMap) {
@@ -17,20 +20,24 @@ Book::~Book()
     }
     orderMap.clear();
 
-    for (auto& [limitPrice, limit] : limitBuyMap) {
-        delete limit;
-    }
+    deleteTree(buyTree);
+    deleteTree(sellTree);
+    deleteTree(stopBuyTree);
+    deleteTree(stopSellTree);
+
     limitBuyMap.clear();
-
-    for (auto& [limitPrice, limit] : limitSellMap) {
-        delete limit;
-    }
     limitSellMap.clear();
-
-    for (auto& [stopPrice, stopLevel] : stopMap) {
-        delete stopLevel;
-    }
     stopMap.clear();
+}
+
+void Book::deleteTree(Limit* node)
+{
+    if (node == nullptr) {
+        return;
+    }
+    deleteTree(node->getLeftChild());
+    deleteTree(node->getRightChild());
+    delete node;
 }
 
 Limit* Book::getBuyTree() const
@@ -87,6 +94,11 @@ void Book::marketOrder(int orderId, bool buyOrSell, int shares)
 void Book::addLimitOrder(int orderId, bool buyOrSell, int shares, int limitPrice)
 {
     AVLTreeBalanceCount = 0;
+    // Reject duplicate live order ids: no state change, no events.
+    if (orderMap.find(orderId) != orderMap.end())
+    {
+        return;
+    }
     // Account for order being executed immediately
     shares = limitOrderAsMarketOrder(orderId, buyOrSell, shares, limitPrice);
     
@@ -141,15 +153,30 @@ void Book::modifyLimitOrder(int orderId, int newShares, int newLimit)
             {
                 deleteLimit(order->getParentLimit());
             }
-        
-        order->modifyOrder(newShares, newLimit);
-        auto& limitMap = order->getBuyOrSell() ? limitBuyMap : limitSellMap;
 
-        if (limitMap.find(newLimit) == limitMap.end())
+        bool buyOrSell = order->getBuyOrSell();
+        order->modifyOrder(newShares, newLimit);
+
+        // A modify that crosses the book executes aggressively like an AddLimit.
+        int remaining = limitOrderAsMarketOrder(orderId, buyOrSell, newShares, newLimit);
+
+        if (remaining != 0)
         {
-            addLimit(newLimit, order->getBuyOrSell());
+            order->setShares(remaining);
+            auto& limitMap = buyOrSell ? limitBuyMap : limitSellMap;
+
+            if (limitMap.find(newLimit) == limitMap.end())
+            {
+                addLimit(newLimit, buyOrSell);
+            }
+            limitMap.at(newLimit)->append(order);
         }
-        limitMap.at(newLimit)->append(order);
+        else
+        {
+            deleteFromOrderMap(orderId);
+            delete order;
+            executeStopOrders(buyOrSell);
+        }
     }
 }
 
@@ -305,7 +332,6 @@ Order* Book::searchOrderMap(int orderId) const
         return it->second;
     } else
     {
-        std::cout << "No order number " << orderId << std::endl;
         return nullptr;
     }
 }
@@ -321,7 +347,6 @@ Limit* Book::searchLimitMaps(int limitPrice, bool buyOrSell) const
         return it->second;
     } else
     {
-        std::cout << "No "<< (buyOrSell ? "buy " : "sell ") << "limit at " << limitPrice << std::endl;
         return nullptr;
     }
 }
@@ -335,7 +360,6 @@ Limit* Book::searchStopMap(int stopPrice) const
         return it->second;
     } else
     {
-        std::cout << "No stop level at " << stopPrice << std::endl;
         return nullptr;
     }
 }
@@ -700,94 +724,176 @@ void Book::updateStopBookEdgeRemove(Limit* stopLevel)
     }
 }
 
-// Change the root limit in the AVL tree if the root limit is deleted
-void Book::changeBookRoots(Limit* limit){
-    auto& tree = limit->getBuyOrSell() ? buyTree : sellTree;
-    if (limit == tree)
-    {
-        if (limit->getRightChild() != nullptr)
-        {
-            tree = tree->getRightChild();
-            while (tree->getLeftChild() != nullptr)
-            {
-                tree = tree->getLeftChild();
-            }
-        } else
-        {
-            tree = limit->getLeftChild();
-        }
-    }
-}
-
-// Change the root stop level in the AVL tree if the root stop level is deleted
-void Book::changeStopBookRoots(Limit* stopLevel){
-    auto& tree = stopLevel->getBuyOrSell() ? stopBuyTree : stopSellTree;
-    if (stopLevel == tree)
-    {
-        if (stopLevel->getRightChild() != nullptr)
-        {
-            tree = tree->getRightChild();
-            while (tree->getLeftChild() != nullptr)
-            {
-                tree = tree->getLeftChild();
-            }
-        } else
-        {
-            tree = stopLevel->getLeftChild();
-        }
-    }
-}
-
-// Delete a limit after it has been emptied
+// Delete a limit after it has been emptied (classic AVL node deletion).
 void Book::deleteLimit(Limit* limit)
 {
     updateBookEdgeRemove(limit);
     deleteFromLimitMaps(limit->getLimitPrice(), limit->getBuyOrSell());
-    changeBookRoots(limit);
+
+    bool buyOrSell = limit->getBuyOrSell();
+    auto& tree = buyOrSell ? buyTree : sellTree;
 
     Limit* parent = limit->getParent();
-    int limitPrice = limit->getLimitPrice();
-    delete limit;
-    while (parent != nullptr)
+    Limit* leftChild = limit->getLeftChild();
+    Limit* rightChild = limit->getRightChild();
+
+    Limit* rebalanceStart = parent;
+
+    if (leftChild != nullptr && rightChild != nullptr)
     {
-        parent = balance(parent);
-        if (parent->getParent() != nullptr)
+        // Two children: splice out the in-order successor and move it up.
+        Limit* successor = rightChild;
+        while (successor->getLeftChild() != nullptr)
         {
-            if (parent->getParent()->getLimitPrice() > limitPrice)
-            {
-                parent->getParent()->setLeftChild(parent);
-            } else {
-                parent->getParent()->setRightChild(parent);
-            }
+            successor = successor->getLeftChild();
         }
-        parent = parent->getParent();
+
+        if (successor == rightChild)
+        {
+            successor->setLeftChild(leftChild);
+            leftChild->setParent(successor);
+        }
+        else
+        {
+            Limit* successorParent = successor->getParent();
+            Limit* successorRight = successor->getRightChild();
+            successorParent->setLeftChild(successorRight);
+            if (successorRight != nullptr)
+            {
+                successorRight->setParent(successorParent);
+            }
+            rebalanceStart = successorParent;
+
+            successor->setLeftChild(leftChild);
+            leftChild->setParent(successor);
+            successor->setRightChild(rightChild);
+            rightChild->setParent(successor);
+        }
+
+        successor->setParent(parent);
+        if (parent == nullptr)
+        {
+            tree = successor;
+        }
+        else if (parent->getLeftChild() == limit)
+        {
+            parent->setLeftChild(successor);
+        }
+        else
+        {
+            parent->setRightChild(successor);
+        }
     }
+    else
+    {
+        // Zero or one child: replace with the single child (or null).
+        Limit* child = (leftChild != nullptr) ? leftChild : rightChild;
+        if (parent == nullptr)
+        {
+            tree = child;
+        }
+        else if (parent->getLeftChild() == limit)
+        {
+            parent->setLeftChild(child);
+        }
+        else
+        {
+            parent->setRightChild(child);
+        }
+        if (child != nullptr)
+        {
+            child->setParent(parent);
+        }
+    }
+
+    delete limit;
+
+    rebalanceUpward(rebalanceStart, buyOrSell);
 }
 
-// Delete a stop level after it has been emptied
+// Delete a stop level after it has been emptied (classic AVL node deletion).
 void Book::deleteStopLevel(Limit* stopLevel)
 {
     updateStopBookEdgeRemove(stopLevel);
     deleteFromStopMap(stopLevel->getLimitPrice());
-    changeStopBookRoots(stopLevel);
+
+    bool buyOrSell = stopLevel->getBuyOrSell();
+    auto& tree = buyOrSell ? stopBuyTree : stopSellTree;
 
     Limit* parent = stopLevel->getParent();
-    int stopPrice = stopLevel->getLimitPrice();
-    delete stopLevel;
-    while (parent != nullptr)
+    Limit* leftChild = stopLevel->getLeftChild();
+    Limit* rightChild = stopLevel->getRightChild();
+
+    Limit* rebalanceStart = parent;
+
+    if (leftChild != nullptr && rightChild != nullptr)
     {
-        parent = balanceStop(parent);
-        if (parent->getParent() != nullptr)
+        Limit* successor = rightChild;
+        while (successor->getLeftChild() != nullptr)
         {
-            if (parent->getParent()->getLimitPrice() > stopPrice)
-            {
-                parent->getParent()->setLeftChild(parent);
-            } else {
-                parent->getParent()->setRightChild(parent);
-            }
+            successor = successor->getLeftChild();
         }
-        parent = parent->getParent();
+
+        if (successor == rightChild)
+        {
+            successor->setLeftChild(leftChild);
+            leftChild->setParent(successor);
+        }
+        else
+        {
+            Limit* successorParent = successor->getParent();
+            Limit* successorRight = successor->getRightChild();
+            successorParent->setLeftChild(successorRight);
+            if (successorRight != nullptr)
+            {
+                successorRight->setParent(successorParent);
+            }
+            rebalanceStart = successorParent;
+
+            successor->setLeftChild(leftChild);
+            leftChild->setParent(successor);
+            successor->setRightChild(rightChild);
+            rightChild->setParent(successor);
+        }
+
+        successor->setParent(parent);
+        if (parent == nullptr)
+        {
+            tree = successor;
+        }
+        else if (parent->getLeftChild() == stopLevel)
+        {
+            parent->setLeftChild(successor);
+        }
+        else
+        {
+            parent->setRightChild(successor);
+        }
     }
+    else
+    {
+        Limit* child = (leftChild != nullptr) ? leftChild : rightChild;
+        if (parent == nullptr)
+        {
+            tree = child;
+        }
+        else if (parent->getLeftChild() == stopLevel)
+        {
+            parent->setLeftChild(child);
+        }
+        else
+        {
+            parent->setRightChild(child);
+        }
+        if (child != nullptr)
+        {
+            child->setParent(parent);
+        }
+    }
+
+    delete stopLevel;
+
+    rebalanceUpwardStop(rebalanceStart, buyOrSell);
 }
 
 // Delete an order from the order map
@@ -1180,4 +1286,53 @@ Limit* Book::balanceStop(Limit* limit) {
         AVLTreeBalanceCount += 1;
     }
     return limit;
+}
+
+// Rebalance the limit AVL tree upward from `node` to the root, re-attaching
+// rotated subtree roots to their parents correctly.
+void Book::rebalanceUpward(Limit* node, bool buyOrSell)
+{
+    auto& tree = buyOrSell ? buyTree : sellTree;
+    while (node != nullptr)
+    {
+        Limit* parent = node->getParent();
+        bool isLeftChild = (parent != nullptr && parent->getLeftChild() == node);
+        Limit* newSubtree = balance(node);
+        if (parent != nullptr)
+        {
+            if (isLeftChild)
+            {
+                parent->setLeftChild(newSubtree);
+            } else {
+                parent->setRightChild(newSubtree);
+            }
+        } else {
+            tree = newSubtree;
+        }
+        node = newSubtree->getParent();
+    }
+}
+
+// Rebalance the stop AVL tree upward from `node` to the root.
+void Book::rebalanceUpwardStop(Limit* node, bool buyOrSell)
+{
+    auto& tree = buyOrSell ? stopBuyTree : stopSellTree;
+    while (node != nullptr)
+    {
+        Limit* parent = node->getParent();
+        bool isLeftChild = (parent != nullptr && parent->getLeftChild() == node);
+        Limit* newSubtree = balanceStop(node);
+        if (parent != nullptr)
+        {
+            if (isLeftChild)
+            {
+                parent->setLeftChild(newSubtree);
+            } else {
+                parent->setRightChild(newSubtree);
+            }
+        } else {
+            tree = newSubtree;
+        }
+        node = newSubtree->getParent();
+    }
 }

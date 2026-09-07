@@ -34,8 +34,6 @@ private:
     void updateStopBookEdgeInsert(Limit* newStop);
     void updateBookEdgeRemove(Limit* limit);
     void updateStopBookEdgeRemove(Limit* stopLevel);
-    void changeBookRoots(Limit* limit);
-    void changeStopBookRoots(Limit* stopLevel);
     void deleteLimit(Limit* limit);
     void deleteStopLevel(Limit* limit);
     void deleteFromOrderMap(int orderId);
@@ -61,6 +59,10 @@ private:
     Limit* lr_rotateStop(Limit* limit);
     Limit* rl_rotateStop(Limit* limit);
     Limit* balanceStop(Limit* limit);
+
+    void rebalanceUpward(Limit* node, bool buyOrSell);
+    void rebalanceUpwardStop(Limit* node, bool buyOrSell);
+    void deleteTree(Limit* node);
 
 public:
     Book();
