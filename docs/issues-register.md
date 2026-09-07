@@ -21,6 +21,21 @@ Scope note: portfolio research scope = limit/market/cancel/modify + FIFO price-t
 | 13 | Semantics | Modify at the SAME price also re-appends at the tail (cancel+append) — order loses its FIFO position even for pure size changes. Document as defined behavior (modify = cancel-and-replace), reference model must match; do not silently "fix" to priority-preserving. | semantics | READING |
 | 14 | Build | Root CMakeLists requires cmake>=3.29 and `add_subdirectory(googletest)` with googletest absent from the repo (gitignored). Build is broken out-of-the-box; needs FetchContent bootstrap. test/ExampleOrdersTests.cpp references Windows absolute paths (lines 33,37) and ./Orders.txt / initialOrders.txt do not exist in repo — environment-stubbed tests. | build | CONFIRMED |
 
+## Resolution log (2026-09-07, after LOB-002 merge — commit 1bd1b2e)
+- #1 duplicate-id reject: FIXED. addLimitOrder rejects ids already live (orderMap covers limit+stop orders), zero state change; reuse allowed after death. Repro tests: EngineCorrectnessTests.DuplicateIdAddIsRejected / DuplicateIdReusableAfterCancel. Two upstream tests that accidentally relied on dup-id acceptance were adapted with unique ids (commit 9e9c827, intent preserved).
+- #2 AVL delete: FIXED. ~Limit inert; deleteLimit/deleteStopLevel implement classic AVL delete (successor splice, rebalance from successor's original parent AND — review catch, commit d5e8061 — from the successor itself when it is the deleted node's direct right child). Edge heuristics still assume AVL shape, now sound again.
+- #3 modify-to-crossing: FIXED. modifyLimitOrder executes aggressively like AddLimit; remainder rests at new limit; full fill deletes the order (id reusable). I5 (no-cross) holds. Repro tests: ModifyBuyToCrossingExecutesFullFill / ModifyToCrossingLeavesRemainderResting / SamePriceModifyLosesFifoPriority (kept upstream cancel-and-replace FIFO semantics, #13 unchanged by design).
+- #4 market remainder drop: KEPT as upstream semantics, now documented in docs/semantics.md S3 and pinned by MarketOrderRemainderDropped test.
+- #5 prints: FIXED. search* return nullptr silently (commit c91e90d); engine is print-free.
+- #6 teardown: FIXED. Book::~Book deletes orders via orderMap, levels post-order per tree (deleteTree); no destructor surgery. Local verification UBSan-clean; ASan/LSan deferred to Linux CI (host limitation: Apple clang 16 + macOS 26 ASan init broken, probe-verified).
+- #8 balance-factors-not-cached: NOT fixed (by design) — true O(subtree) rebalance cost; retained as the target for the Stage D price-structure optimization experiment (LOB-006), with upstream tests pinning behavior.
+- #9 stopMap two-sided keying: KEPT (out of research scope); covered by upstream stop tests; noted in docs.
+- #10 validation: FIXED per semantics.md (id/qty/price <= 0, dup live id => silent reject). Tests: ValidationRejectsLeaveStateUntouched.
+- #11 overflow bounds: DOCUMENTED (semantics.md corpus bounds; per-level volume < 2^31-1).
+- #12 events/state introspection: ADDED — FillEvent sink + snapshot()/LevelState/OrderState + Order::getNextOrder (commit d5e8061), covered by FillEventsCorrect / SnapshotMatchesState / NullFillSinkIsSafe.
+- #14 build: FIXED in LOB-001 (googletest FetchContent bootstrap).
+Evidence: LimitOrderBookTests 123/123 (Release + UBSan), EngineCorrectnessTests 18/18 (Release + UBSan), verify.py 8/8.
+
 ## Baseline rules (decided, control plane)
 - Correctness fixes land ONLY with a reproducing test committed first (separate commits).
 - Reference model semantics = the FIXED engine semantics, defined in docs/semantics.md before differential tests.
