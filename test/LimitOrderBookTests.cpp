@@ -1383,7 +1383,10 @@ TEST_F(LimitOrderBookTests, TestAddingSellLimitOrderWhichIsAMarketOrderAcrossMul
 
 TEST_F(LimitOrderBookTests, TestAddingSellLimitOrderWhichIsOnlyPartiallyAMarketOrder) {
     book->addLimitOrder(357, true, 40, 100);
-    book->addLimitOrder(357, true, 40, 99);
+    // NOTE: upstream used id 357 again here; engine v1 semantics rejects duplicate
+    // live ids (docs/semantics.md), so this second order needs its own id. The test
+    // intent is cross-level partial execution, not duplicate ids.
+    book->addLimitOrder(358, true, 40, 99);
     book->addLimitOrder(222, false, 45, 100);
 
     EXPECT_EQ(book->getHighestBuy()->getTotalVolume(), 40);
@@ -1415,7 +1418,9 @@ TEST_F(LimitOrderBookTests, TestAddingBuyLimitOrderWhichIsAMarketOrderAcrossMult
 
 TEST_F(LimitOrderBookTests, TestAddingBuyLimitOrderWhichIsOnlyPartiallyAMarketOrder) {
     book->addLimitOrder(357, false, 40, 100);
-    book->addLimitOrder(357, false, 40, 101);
+    // NOTE: upstream used id 357 again; engine v1 rejects duplicate live ids
+    // (docs/semantics.md) — unique id keeps the cross-level partial intent.
+    book->addLimitOrder(358, false, 40, 101);
     book->addLimitOrder(222, true, 45, 100);
 
     EXPECT_EQ(book->getLowestSell()->getTotalVolume(), 40);
