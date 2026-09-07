@@ -5,11 +5,34 @@
 #include <vector>
 #include <random>
 #include <unordered_set>
+#include <cstdint>
 
 class Limit;
 class Order;
 
 class Book {
+public:
+    struct FillEvent {
+        int aggressorId;
+        int restingId;
+        int price;
+        int qty;
+        bool aggressorBuy;
+        uint64_t seq;
+    };
+
+    struct OrderState {
+        int id;
+        int qty;
+    };
+
+    struct LevelState {
+        int price;
+        bool side;
+        long long totalVolume;
+        std::vector<OrderState> orders;
+    };
+
 private:
     Limit *buyTree;
     Limit *sellTree;
@@ -25,6 +48,9 @@ private:
     std::unordered_map<int, Limit*> limitBuyMap;
     std::unordered_map<int, Limit*> limitSellMap;
     std::unordered_map<int, Limit*> stopMap;
+
+    std::vector<FillEvent>* fillSink = nullptr;
+    uint64_t fillSeq = 0;
 
     void addLimit(int limitPrice, bool buyOrSell);
     void addStop(int stopPrice, bool buyOrSell);
@@ -99,6 +125,10 @@ public:
     Order* searchOrderMap(int orderId) const;
     Limit* searchLimitMaps(int limitPrice, bool buyOrSell) const;
     Limit* searchStopMap(int stopPrice) const;
+
+    // Fill event sink + state introspection API
+    void setFillSink(std::vector<FillEvent>* sink);
+    std::vector<LevelState> snapshot() const;
 
     // Functions for visualising the order book
     void printLimit(int limitPrice, bool buyOrSell) const;

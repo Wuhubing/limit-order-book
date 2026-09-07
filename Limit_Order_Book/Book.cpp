@@ -85,6 +85,11 @@ void Book::marketOrder(int orderId, bool buyOrSell, int shares)
 {
     executedOrdersCount = 0;
     AVLTreeBalanceCount = 0;
+    // Validate input: reject invalid qty with no state change.
+    if (shares <= 0)
+    {
+        return;
+    }
     marketOrderHelper(orderId, buyOrSell, shares);
 
     executeStopOrders(buyOrSell);
@@ -94,6 +99,11 @@ void Book::marketOrder(int orderId, bool buyOrSell, int shares)
 void Book::addLimitOrder(int orderId, bool buyOrSell, int shares, int limitPrice)
 {
     AVLTreeBalanceCount = 0;
+    // Validate input: reject invalid id/qty/price with no state change.
+    if (orderId <= 0 || shares <= 0 || limitPrice <= 0)
+    {
+        return;
+    }
     // Reject duplicate live order ids: no state change, no events.
     if (orderMap.find(orderId) != orderMap.end())
     {
@@ -146,37 +156,40 @@ void Book::modifyLimitOrder(int orderId, int newShares, int newLimit)
     executedOrdersCount = 0;
     AVLTreeBalanceCount = 0;
     Order* order = searchOrderMap(orderId);
-    if (order != nullptr)
+    // Validate input: id must be live, new qty/price must be positive. Violation =>
+    // silent no-op, the order keeps its old state.
+    if (order == nullptr || newShares <= 0 || newLimit <= 0)
     {
-        order->cancel();
-            if (order->getParentLimit()->getSize() == 0)
-            {
-                deleteLimit(order->getParentLimit());
-            }
-
-        bool buyOrSell = order->getBuyOrSell();
-        order->modifyOrder(newShares, newLimit);
-
-        // A modify that crosses the book executes aggressively like an AddLimit.
-        int remaining = limitOrderAsMarketOrder(orderId, buyOrSell, newShares, newLimit);
-
-        if (remaining != 0)
+        return;
+    }
+    order->cancel();
+        if (order->getParentLimit()->getSize() == 0)
         {
-            order->setShares(remaining);
-            auto& limitMap = buyOrSell ? limitBuyMap : limitSellMap;
+            deleteLimit(order->getParentLimit());
+        }
 
-            if (limitMap.find(newLimit) == limitMap.end())
-            {
-                addLimit(newLimit, buyOrSell);
-            }
-            limitMap.at(newLimit)->append(order);
-        }
-        else
+    bool buyOrSell = order->getBuyOrSell();
+    order->modifyOrder(newShares, newLimit);
+
+    // A modify that crosses the book executes aggressively like an AddLimit.
+    int remaining = limitOrderAsMarketOrder(orderId, buyOrSell, newShares, newLimit);
+
+    if (remaining != 0)
+    {
+        order->setShares(remaining);
+        auto& limitMap = buyOrSell ? limitBuyMap : limitSellMap;
+
+        if (limitMap.find(newLimit) == limitMap.end())
         {
-            deleteFromOrderMap(orderId);
-            delete order;
-            executeStopOrders(buyOrSell);
+            addLimit(newLimit, buyOrSell);
         }
+        limitMap.at(newLimit)->append(order);
+    }
+    else
+    {
+        deleteFromOrderMap(orderId);
+        delete order;
+        executeStopOrders(buyOrSell);
     }
 }
 
@@ -362,6 +375,50 @@ Limit* Book::searchStopMap(int stopPrice) const
     {
         return nullptr;
     }
+}
+
+// Set (or disable, with nullptr) the optional fill event sink.
+void Book::setFillSink(std::vector<FillEvent>* sink)
+{
+    fillSink = sink;
+}
+
+// Return the book state: buy levels (ascending price) followed by sell levels
+// (ascending price), each with its orders in FIFO head->tail order.
+std::vector<Book::LevelState> Book::snapshot() const
+{
+    std::vector<LevelState> result;
+
+    auto appendLevel = [&result](Limit* level) {
+        LevelState ls;
+        ls.price = level->getLimitPrice();
+        ls.side = level->getBuyOrSell();
+        ls.totalVolume = level->getTotalVolume();
+        for (Order* order = level->getHeadOrder(); order != nullptr; order = order->getNextOrder())
+        {
+            ls.orders.push_back({order->getOrderId(), order->getShares()});
+        }
+        result.push_back(ls);
+    };
+
+    for (int price : inOrderTreeTraversal(getBuyTree()))
+    {
+        Limit* level = searchLimitMaps(price, true);
+        if (level != nullptr)
+        {
+            appendLevel(level);
+        }
+    }
+    for (int price : inOrderTreeTraversal(getSellTree()))
+    {
+        Limit* level = searchLimitMaps(price, false);
+        if (level != nullptr)
+        {
+            appendLevel(level);
+        }
+    }
+
+    return result;
 }
 
 void Book::printLimit(int limitPrice, bool buyOrSell) const
@@ -752,6 +809,10 @@ void Book::deleteLimit(Limit* limit)
         {
             successor->setLeftChild(leftChild);
             leftChild->setParent(successor);
+            // The successor itself moved up and gained a left subtree: it may
+            // now be unbalanced and is NOT on the deleted node's parent chain,
+            // so start the rebalance walk at it.
+            rebalanceStart = successor;
         }
         else
         {
@@ -838,6 +899,9 @@ void Book::deleteStopLevel(Limit* stopLevel)
         {
             successor->setLeftChild(leftChild);
             leftChild->setParent(successor);
+            // Successor moved up and gained a left subtree: start rebalancing
+            // at it (it is not on the deleted node's parent chain).
+            rebalanceStart = successor;
         }
         else
         {
@@ -1112,21 +1176,35 @@ void Book::marketOrderHelper(int orderId, bool buyOrSell, int shares)
     while (bookEdge != nullptr && bookEdge->getHeadOrder()->getShares() <= shares)
     {
         Order* headOrder = bookEdge->getHeadOrder();
-        shares -= headOrder->getShares();
+        int tradePrice = bookEdge->getLimitPrice();
+        int restingId = headOrder->getOrderId();
+        int tradeQty = headOrder->getShares();
+        shares -= tradeQty;
         headOrder->execute();
         if (bookEdge->getSize() == 0)
         {
             deleteLimit(bookEdge);
         }
-        deleteFromOrderMap(headOrder->getOrderId());
+        deleteFromOrderMap(restingId);
         // limitOrders.erase(headOrder);
         delete headOrder;
         executedOrdersCount += 1;
+        if (fillSink != nullptr)
+        {
+            fillSink->push_back({orderId, restingId, tradePrice, tradeQty, buyOrSell, fillSeq++});
+        }
     }
     if (bookEdge != nullptr && shares != 0)
     {
-        bookEdge->getHeadOrder()->partiallyFillOrder(shares);
+        Order* headOrder = bookEdge->getHeadOrder();
+        int tradePrice = bookEdge->getLimitPrice();
+        int restingId = headOrder->getOrderId();
+        headOrder->partiallyFillOrder(shares);
         executedOrdersCount += 1;
+        if (fillSink != nullptr)
+        {
+            fillSink->push_back({orderId, restingId, tradePrice, shares, buyOrSell, fillSeq++});
+        }
     }
 }
 

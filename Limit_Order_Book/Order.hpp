@@ -22,6 +22,7 @@ public:
     bool getBuyOrSell() const;
     int getLimit() const;
     Limit* getParentLimit() const;
+    Order* getNextOrder() const;
 
     void partiallyFillOrder(int orderedShares);
     void cancel();
