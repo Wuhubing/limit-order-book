@@ -1,0 +1,165 @@
+task_id: LOB-003
+
+goal: |
+  Stage B2 — Independent reference model + differential testing harness.
+  Implement docs/semantics.md a SECOND time in clean, standard-library-only C++
+  (no engine headers, no shared matching logic): a price-time matching core
+  (limit add/modify/cancel + market) whose behavior can be diffed request-by-request
+  against the engine (Book) that LOB-002 fixed. Then build the harness that drives
+  BOTH implementations from the SAME parsed command stream and, after EVERY request,
+  compares (a) the emitted FillEvent stream and (b) the full logical book state
+  (levels in price order, FIFO order queues, totals, live-order index). Plus: a
+  seeded random workload generator that maintains legal order identity and bounded
+  active size, a minimizer that shrinks any mismatch to a small failing corpus, a
+  deterministic-replay self-check, and an invariants checker (I1-I7 of
+  docs/semantics.md) run against the engine after every request.
+
+context: |
+  Repo: /Users/ww/projects/limit-order-book (worktree on task/LOB-002's merged main —
+  LOB-002 engine v1 already merged: validation rejects, duplicate-id rejection,
+  modify-to-crossing execution, inert Limit destructor, Book-side AVL delete,
+  print-free engine, FillEvent sink, Order::getNextOrder, Book::snapshot()).
+  BUILD: export PATH="/opt/homebrew/bin:$PATH" then cmake -B build -G Ninja
+  -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8. Test binary lands at
+  build/test/. macOS Apple clang 16; no LeakSanitizer (ASAN_OPTIONS=detect_leaks=0).
+
+  READ FIRST (authoritative):
+  - docs/semantics.md — the exact behavior contract both implementations must satisfy
+  - docs/issues-register.md — background on engine history
+  - Limit_Order_Book/Book.hpp — engine public API (post-LOB-002): addLimitOrder(id,
+    side, qty, limit), marketOrder(id, side, qty), cancelLimitOrder(id),
+    modifyLimitOrder(id, qty, limit), setFillSink(std::vector<FillEvent>*),
+    snapshot() returning std::vector<LevelState> (buy levels ascending then sell
+    ascending; LevelState.orders FIFO head->tail), plus existing getters
+    (getHighestBuy/getLowestSell/search*/traversals). FillEvent {aggressorId,
+    restingId, price, qty, aggressorBuy, seq}. Side convention: true=buy.
+  - test/EngineCorrectnessTests.cpp — style reference for gtest usage of the engine.
+
+  ENGINE IS FROZEN in this task: if the differential harness finds a genuine engine
+  bug or semantics mismatch, DO NOT modify Limit_Order_Book/** to hide or fix it.
+  Record the failing seed, save the corpus, produce the minimal case; the gtest case
+  for that corpus FAILS (expected) and Hermes decides the follow-up. Your deliverable
+  is the harness that finds such cases, not the fix.
+
+  Command format (canonical text corpus, forward-compatible with Stage C benchmarks
+  and Stage E replay). One command per line, whitespace-separated:
+    Add <id> <side> <qty> <price>      side: 0=sell 1=buy
+    Mkt <id> <side> <qty>
+    Cxl <id>
+    Mod <id> <qty> <price>
+  Unknown lines / malformed lines are a parse error (corpus files are generated, not
+  hand-edited). Corpus files must be plain ASCII, LF, no trailing garbage. Keep the
+  parser and generator in a shared header under reference/ so tests, the standalone
+  tool, and later stages reuse them.
+
+  New layout:
+  - reference/ReferenceBook.hpp/.cpp — independent matching core per semantics.md.
+    Standard containers only (std::map price levels keyed by price, FIFO queue per
+    level, std::unordered_map id index). Volumes as int64 internally. MUST NOT
+    include any Limit_Order_Book header or copy its code structure; it is the oracle.
+    Expose: apply(command) + fills() vector + a state-dump struct designed for exact
+    structural comparison with Book::snapshot() (LevelState-equivalent shape:
+    price, side, totalVolume, ordered id+qty list).
+  - reference/Command.hpp — Command struct + corpus parser + generator declaration.
+  - reference/WorkloadGenerator.hpp/.cpp — seeded (std::mt19937) stream builder with
+    parameters: num_requests, seed, op-mix weights, price range/center/spread model,
+    qty range, target active-size band. MUST keep order ids legal: reuse ids only
+    after their order is dead; keep live orders inside the active band (add when
+    below, cancel/consume when above); keep per-level volume < 2^31-1 and price in
+    [1, 1_000_000]; avoid fast book exhaustion (never let both sides empty for long —
+    inject resting liquidity when one side is empty). ALSO deliberately inject a
+    small rate (>=1% ) of semantically-valid-but-degenerate ops (duplicate live id,
+    qty<=0, price<=0, cancel/modify of unknown id, market on empty side) so the
+    reject/no-op semantics of both sides are diffed too. The generator must expose a
+    deterministic text dump of the produced stream (write corpus file) AND keep an
+    in-memory Command vector — a corpus file read back through the parser must equal
+    the in-memory stream.
+  - test/DifferentialTests.cpp — gtest suite: (1) reference-model unit scenarios
+    mirroring semantics.md edge cases (FIFO order incl. after partial fill, price
+    priority across levels, multi-level sweep with per-level prices, cancel
+    head/middle/tail/last + level cleanup, modify re-insert at tail + crossing
+    execution + remainder rest, market remainder drop, empty/one-sided book,
+    validation rejects, fill event order/seq) — reference standalone, no engine;
+    (2) differential runs: for each of >=20 fixed seeds, generate
+    num_requests (>=2000) and replay on engine vs reference comparing events +
+    state after every request; on mismatch, dump corpus + gtest failure text naming
+    seed/request index/first divergence; (3) determinism self-check: same corpus
+    through two fresh engine instances yields identical events+states; (4)
+    invariant checker (I1-I7 from semantics.md) executed against the engine after
+    every differential request (I6 via recursive height check on buy/sell trees;
+    I2/I3 via cross-checking snapshot vs searchOrderMap vs orderMap-level internals
+    through the public API and snapshot) — invariant violations are failures with
+    the same dump/shrink path.
+  - tools/diff_fuzz.cpp — small standalone main (linked into the test build or a
+    tools target, your choice): args like --seed N --requests N --ops
+    a/c/m/x:weights --out corpus.txt [--replay corpus.txt]; used to generate large
+    corpora for bench/replay later and to re-check a saved corpus. Verify a replay
+    by exit code: 0 identical, 1 divergence (prints first divergence + state diff),
+    2 parse error.
+  - testdata/corpora/ (COMMITTED): generate and commit 3 small corpora
+    (mix-heavy, cancel-heavy, market-heavy; >=400 requests each) with their seeds in
+    a README, for offline replay checks without the generator.
+  Shrinking: on any mismatch, save the full corpus under .agent/results/failures/
+  (gitignored) and implement greedy minimisation: (a) find shortest failing prefix by
+  bisection over prefix length, then (b) repeatedly try removing each remaining
+  command, keeping removals that still fail; emit the final minimal corpus to the
+  gtest message and to .agent/results/failures/<seed>.min.txt. The minimizer uses
+  the same compare routine, so it must be fast enough (share state cheaply or accept
+  O(n^2) for <=2000-request corpora).
+
+  Honesty rules: never claim a diff passed that did not run; every gtest expectation
+  must actually execute (no disabled tests unless documented in the file header);
+  seeds and request counts reported exactly.
+
+worker:
+  type: deep
+
+scope:
+  allowed:
+    - reference/**
+    - tools/diff_fuzz.cpp
+    - test/CMakeLists.txt
+    - test/DifferentialTests.cpp
+    - testdata/**
+  forbidden:
+    - Limit_Order_Book/**
+    - test/LimitOrderBookTests.cpp
+    - test/ExampleOrdersTests.cpp
+    - test/EngineCorrectnessTests.cpp
+    - Process_Orders/**
+    - Generate_Orders/**
+    - main.cpp
+    - CMakeLists.txt
+    - .agent/**
+    - docs/**
+    - .worktrees/**
+
+constraints:
+  - Engine (Limit_Order_Book/**) is FROZEN: zero modifications, even if differential tests fail
+  - Reference model must not include or copy engine code; standard library only
+  - Do not edit existing test files or docs
+  - No new dependencies
+  - Deterministic: same seed => identical corpus => identical results on both sides and across runs
+
+acceptance:
+  - reference/ implements semantics.md and passes its own unit scenarios
+  - Differential suite runs >=20 seeds x >=2000 requests, comparing events AND state after EVERY request, plus I1-I7 invariant checks
+  - Any mismatch yields: failing gtest, saved corpus, minimized corpus, seed + request index in the failure text
+  - Corpus parser <-> generator round-trip is exact; determinism self-check passes
+  - 3 small corpora committed under testdata/corpora/ with seeds documented
+  - tools/diff_fuzz generates and replays corpora; replay exit codes as specified
+  - Release AND ASan+UBSan builds both run the full new suite green (or, if a genuine engine bug is found, the specific minimized-case test FAILS and is reported — never silently hidden)
+
+verification:
+  - export PATH="/opt/homebrew/bin:$PATH" && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/DifferentialTests --gtest_color=no --gtest_output=xml:.agent/results/LOB-003-diff.xml > .agent/results/LOB-003-diff.log 2>&1; echo "diff-suite exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/EngineCorrectnessTests --gtest_color=no > .agent/results/LOB-003-engine.log 2>&1; echo "engine-suite exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; cmake -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" && cmake --build build-asan -j8'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ASAN_OPTIONS=detect_leaks=0 ./build-asan/test/DifferentialTests --gtest_color=no > .agent/results/LOB-003-diff-asan.log 2>&1; echo "asan-diff exit=$?"'
+  - 'test -f reference/ReferenceBook.hpp && test -f reference/Command.hpp && test -f tools/diff_fuzz.cpp'
+  - 'ls testdata/corpora/*.txt | wc -l | grep -qE "[3-9]"'
+  - git log --oneline -4
+
+risk: high
+timeout_min: 150
+max_attempts: 2
