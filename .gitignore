@@ -2,3 +2,8 @@
 .vscode/
 \googletest
 /Generate_Orders/orders.txt
+.worktrees/
+.agent/results/
+.agent/logs/
+/order_processing_times.csv
+/build*/

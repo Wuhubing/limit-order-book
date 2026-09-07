@@ -1,0 +1,98 @@
+task_id: LOB-001
+
+goal: |
+  Stage A — pin and fix the baseline so the repo builds and the original test
+  suite runs in this environment, with ONLY build-system changes (no matching-engine
+  logic changes). Deliver three committed docs under docs/: environment.md
+  (upstream commit, OS/compiler/cmake versions, exact build commands),
+  baseline-tests.md (honest run results of the ORIGINAL unit tests: per-suite
+  pass/fail counts, which tests are environment-stubbed and why, raw output
+  saved under .agent/results/), and structure.md (short code-structure
+  explanation of the engine: Book/Limit/Order roles, tree+map+list design,
+  ownership model, op complexities). Commit docs separately from the build fix.
+
+context: |
+  Repo: /Users/ww/projects/limit-order-book (clone of brprojects/Limit-Order-Book,
+  MIT license, upstream commit af6e5349874649fe196bd6c26653d357f5a751f2 on main).
+  Environment: macOS 26.4.1, Apple M4 Pro, Apple clang 16.0.0, cmake 4.4.3 and
+  ninja installed at /opt/homebrew/bin (prepend to PATH: export PATH="/opt/homebrew/bin:$PATH").
+  python3 (only if needed) is /opt/anaconda3/bin/python3.
+
+  Known state you must work from:
+  - Root CMakeLists.txt does `add_subdirectory(googletest)` (line 11) but the
+    googletest/ directory is NOT in the repo (gitignored). Build is broken
+    out-of-the-box. Fix: bootstrap googletest WITHOUT touching the pristine path —
+    if a real googletest/ dir exists, keep using add_subdirectory as upstream does;
+    otherwise FetchContent the official googletest (tag v1.14.0). Keep upstream's
+    other CMake behavior intact (C++20, -O2, library target LimitOrderBook_lib,
+    executable LimitOrderBook from main.cpp). main.cpp needs ./initialOrders.txt and
+    ./Orders.txt which are absent => building the LimitOrderBook executable is fine,
+    RUNNING it is not part of this task (document that in baseline-tests.md).
+  - Engine sources under Limit_Order_Book/ are OFF-LIMITS (Book.cpp/hpp, Limit.cpp/hpp,
+    Order.cpp/hpp): zero modifications this task. test/*.cpp are OFF-LIMITS too.
+  - test/ExampleOrdersTests.cpp: CreateInitialOrdersTest(10000 orders) is self-contained;
+    ProcessInitialOrdersTest and CreateOrdersTest reference a Windows absolute path
+    (C:/Users/benja/...) that does not exist here, so processOrdersFromFile fails to
+    open and returns early. Do NOT delete or edit these tests — classify them as
+    environment-stubbed and document exactly what happened when you ran them.
+  - test/LimitOrderBookTests.cpp (2242 lines) is the real unit suite; it exercises
+    add/cancel/modify/market/stop paths against Book state via searchOrderMap /
+    searchLimitMaps / getters. Expect stdout noise: search* print on misses — normal.
+  - docs/issues-register.md exists on main (Hermes analysis). You may READ it; do not
+    edit it in this task (later tasks own it).
+  - .gitignore already covers /build*/, .agent/results/ etc. Save test logs under
+    .agent/results/ (gitignored, not committed).
+
+  Honesty rules: never claim a test passed that did not run. If a test aborts/crashes/
+  hangs (>120s), record exactly that with the raw output snippet. If LimitOrderBookTests
+  shows genuine assertion failures, record them verbatim (this is baseline evidence,
+  NOT something you fix here — fixing engine logic is forbidden in this task).
+
+  Commits (this branch only, never push):
+  1) build: bootstrap googletest via FetchContent when googletest/ absent
+  2) docs: stage-A baseline records (environment.md, baseline-tests.md, structure.md)
+  Keep commits small and reviewable.
+
+worker:
+  type: deep
+
+scope:
+  allowed:
+    - CMakeLists.txt
+    - docs/environment.md
+    - docs/baseline-tests.md
+    - docs/structure.md
+  forbidden:
+    - Limit_Order_Book/**
+    - test/**
+    - Process_Orders/**
+    - Generate_Orders/**
+    - main.cpp
+    - .agent/**
+    - .worktrees/**
+
+constraints:
+  - Do not modify any engine source (Limit_Order_Book/) or any test source (test/)
+  - Do not change upstream CMake semantics beyond the googletest bootstrap
+  - Do not edit docs/issues-register.md
+  - Do not run the LimitOrderBook main executable against missing data files
+  - Do not git push; commit on this branch only
+
+acceptance:
+  - cmake configures with `cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release` from a clean build dir
+  - LimitOrderBookTests binary builds and its run COMPLETES without crash/abort
+  - baseline-tests.md truthfully records per-suite results incl. environment-stubbed cases and any assertion failures, with raw logs saved under .agent/results/
+  - environment.md records upstream commit af6e534..., OS, clang, cmake versions, and the exact commands used
+  - structure.md explains Book/Limit/Order design, tree+map+list interplay, ownership, and documented op complexities
+  - build fix and docs are separate commits
+
+verification:
+  - export PATH="/opt/homebrew/bin:$PATH" && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+  - export PATH="/opt/homebrew/bin:$PATH" && cmake --build build -j8
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/LimitOrderBookTests --gtest_color=no --gtest_output=xml:.agent/results/LOB-001-unit.xml > .agent/results/LOB-001-unit.log 2>&1; code=$?; echo "LimitOrderBookTests exit=$code"; if [ $code -ge 128 ]; then echo "CRASH or SIGNAL - gate FAIL"; exit 1; fi; exit 0'
+  - test -f docs/environment.md && test -f docs/baseline-tests.md && test -f docs/structure.md
+  - git log --oneline -3
+
+risk: low
+timeout_min: 90
+max_attempts: 2

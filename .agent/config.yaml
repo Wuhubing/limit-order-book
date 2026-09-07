@@ -1,0 +1,14 @@
+# .agent/config.yaml — per-repo orchestration config for the LOB portfolio project.
+# Worker aliases resolved at runtime by scripts/dispatch.py. Committed to the repo.
+
+workers:
+  fast:          # lint/boilerplate/mechanical edits, small focused fixes
+    provider: deepseek
+    model: deepseek-v4-flash
+  deep:          # multi-file features, careful C++ engineering, subtle bugs
+    provider: deepseek
+    model: deepseek-v4-pro
+
+defaults:
+  base_branch: main
+  max_attempts: 2
