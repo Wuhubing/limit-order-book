@@ -1,0 +1,147 @@
+task_id: LOB-002
+
+goal: |
+  Stage B1 — Turn the upstream engine into the documented "engine v1": apply the
+  correctness overhaul specified by docs/semantics.md and docs/issues-register.md
+  to the Limit_Order_Book core. Method: for EVERY behavioral fix, first commit a
+  reproducing test (RED on current code), then commit the fix (GREEN). Commit
+  themes must stay separable: (1) repro tests, (2) engine fixes, (3) events +
+  introspection API + input validation with their tests. All commits on this
+  branch, never push.
+
+context: |
+  Repo: /Users/ww/projects/limit-order-book. Base already includes LOB-001's
+  build bootstrap (googletest via FetchContent when googletest/ absent) — configure
+  with: export PATH="/opt/homebrew/bin:$PATH" (cmake/ninja live there) then
+  `cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8`.
+  macOS 26.4.1 / Apple clang 16. ASan+UBSan available via -fsanitize=address,undefined
+  (NOTE: no LeakSanitizer on macOS — use ASAN_OPTIONS=detect_leaks=0; leak checks
+  happen later on Linux CI).
+
+  AUTHORITATIVE SPEC: read docs/semantics.md (engine v1 behavior) and
+  docs/issues-register.md (numbered issues with file:line evidence) FIRST.
+  Implement exactly that spec. Where semantics.md says [FIX], upstream behavior is
+  wrong and you change the engine. Where it documents upstream behavior WITHOUT
+  [FIX], keep upstream behavior identical.
+
+  Files & current state you will touch (read before editing):
+  - Limit_Order_Book/Book.hpp|cpp: Book dtor (Book.cpp:13) deletes orders via
+    orderMap then limits via unordered_map iteration order; ~Limit does BST pointer
+    surgery on delete (Limit.cpp:10-96) so deleting a child before its parent
+    dereferences freed nodes (issue #6). deleteLimit (Book.cpp:742) /
+    deleteStopLevel (Book.cpp:768) currently rely on destructor surgery then
+    rebalance ancestors of the deleted node only; the in-order-successor splice
+    path inside the subtree never gets rebalanced, so AVL can silently degrade and
+    updateBookEdgeRemove (Book.cpp:638) edge heuristics can then point at a
+    non-extreme level (issue #2). FIX DIRECTION (yours to implement cleanly):
+    make Limit's destructor inert (no tree surgery); move ALL tree removal logic
+    into Book-side delete functions implementing classic AVL node deletion:
+    successor splice + rebalance starting from the successor's ORIGINAL parent
+    (when successor != deleted node's right child) AND from the deleted node's
+    parent, walking to the root, re-attaching rotated roots correctly. The same
+    rework applies to the stop-tree twins (deleteStopLevel/changeStopBookRoots/
+    updateStopBookEdgeRemove/balanceStop rotations). Book::~Book must teardown
+    trees traversal-ordered (children before parents) and free every order exactly
+    once, no reliance on tree pointers inside destructors.
+  - modifyLimitOrder (Book.cpp:132): after cancel-and-replace, a modified order
+    whose new limit crosses must execute aggressively like an AddLimit (fills +
+    remainder rests at new limit, tail). Currently it rests crossed (issue #3).
+  - addLimitOrder/marketOrder/cancelLimitOrder/modifyLimitOrder public entries:
+    add validation per semantics.md (id>0, qty>0, price>0 for add/modify, no live
+    duplicate id; violations => silent reject, zero state change). Market: qty>0.
+    Cancel/modify of unknown id: silent no-op. Remove the std::cout prints from
+    searchOrderMap/searchLimitMaps/searchStopMap (Book.cpp:300-341) — engine is
+    print-free; return nullptr silently. Do NOT touch the other print*/traversal
+    visualization functions or the stop/market internals beyond the AVL delete
+    rework.
+  - Order.hpp/cpp: add `Order* getNextOrder() const;` accessor (needed for level
+    queue walking). Order::cancel (Order.cpp:41) already unlinks correctly.
+  - Fill events + introspection: add to Book.hpp a public
+    `struct FillEvent { int aggressorId; int restingId; int price; int qty; bool
+    aggressorBuy; uint64_t seq; };`, `void setFillSink(std::vector<FillEvent>*)`
+    (nullptr = disabled, zero-cost when disabled: one branch per fill site, no
+    allocation when null), and emit exactly one FillEvent per trade in execution
+    order from marketOrderHelper (Book.cpp:1002) covering BOTH full-consumption
+    loop iterations and the final partial fill; seq is a monotonically increasing
+    engine-lifetime counter. Also add `struct OrderState { int id; int qty; };`
+    `struct LevelState { int price; bool side; long long totalVolume;
+    std::vector<OrderState> orders; };` (orders in FIFO head->tail order) and
+    `std::vector<LevelState> snapshot() const;` returning buy levels (ascending
+    price) followed by sell levels (ascending price) — walk the existing
+    trees/maps with public getters; this is the state-introspection API for
+    differential testing and MUST be exact (it is the oracle interface).
+    Keep executedOrdersCount/AVLTreeBalanceCount behavior identical (upstream
+    tests read them). Stop paths: also wire fill emission through their existing
+    marketOrderHelper calls (aggressorId 0 for system aggressor, as documented).
+  - test/CMakeLists.txt: add the new test file to the test executable sources.
+  - test/EngineCorrectnessTests.cpp (NEW): gtest file driving Book through its
+    public API ONLY (plus setFillSink/snapshot), covering at minimum: duplicate-id
+    add rejected then id reusable after cancel; modify-to-crossing executes and
+    leaves no cross (semantics I5) incl. remainder resting at the new limit;
+    same-price modify loses FIFO priority (re-inserted at tail); market remainder
+    dropped on insufficient liquidity; cancel of head/middle/tail/last order at a
+    level with level removal and map cleanup; partial fill keeps the head order in
+    place; multi-level aggressive sweep fills each level at its own price, FIFO
+    within level, exact-boundary exhaustion; empty book and one-sided book ops are
+    safe no-ops; every validation reject leaves state and event stream untouched;
+    fill events emitted with correct price/qty/order ids/ordering and monotonic
+    seq; snapshot matches state asserted through existing getters; modify with
+    invalid args keeps the order unchanged. Where the current engine is buggy
+    (duplicate id, modify crossing, prints are irrelevant to asserts) the tests
+    must FAIL before your fix commit and PASS after — commit order proves it.
+
+  HONESTY RULES: never claim a test passed that did not run. If an upstream
+  regression test (test/LimitOrderBookTests.cpp, test/ExampleOrdersTests.cpp —
+  DO NOT EDIT either file) fails after your changes, that is a real regression:
+  fix the ENGINE, not the test. Existing tests must stay green (they exercise
+  stop paths heavily — the AVL delete rework must preserve them).
+
+worker:
+  type: deep
+
+scope:
+  allowed:
+    - Limit_Order_Book/**
+    - test/CMakeLists.txt
+    - test/EngineCorrectnessTests.cpp
+  forbidden:
+    - test/LimitOrderBookTests.cpp
+    - test/ExampleOrdersTests.cpp
+    - Process_Orders/**
+    - Generate_Orders/**
+    - main.cpp
+    - CMakeLists.txt
+    - .agent/**
+    - docs/**
+    - .worktrees/**
+
+constraints:
+  - Do not edit docs/semantics.md or docs/issues-register.md (authoritative, review owns them)
+  - Do not edit the two existing test files
+  - Do not change upstream behavior that semantics.md documents WITHOUT a [FIX] marker
+  - Do not add new dependencies or new non-test files outside Limit_Order_Book/ and test/
+  - Keep executedOrdersCount / AVLTreeBalanceCount observable behavior identical
+  - Zero-cost fill sink when disabled: no allocations, no events when sink is null
+
+acceptance:
+  - docs/semantics.md behavior is implemented: duplicate-id reject, modify-to-crossing executes, market remainder drops, cancel/modify of unknown id is a silent no-op, validation rejects change nothing, engine search functions print nothing
+  - AVL delete/teardown rework keeps the ORIGINAL unit suite fully green (regression incl. stop paths) and removes destructor tree surgery (Limit::~Limit inert)
+  - Book teardown frees all memory exactly once (ASan-clean run of both test binaries, detect_leaks=0)
+  - FillEvent sink + snapshot()/getNextOrder() API present and covered by tests
+  - New EngineCorrectnessTests pass under Release and under ASan+UBSan
+  - Commits are themed: repro tests first (red), then fixes (green), then events/introspection/validation with tests
+
+verification:
+  - export PATH="/opt/homebrew/bin:$PATH" && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/LimitOrderBookTests --gtest_color=no > .agent/results/LOB-002-upstream.log 2>&1; echo "upstream-suite exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/EngineCorrectnessTests --gtest_color=no --gtest_output=xml:.agent/results/LOB-002-engine.xml > .agent/results/LOB-002-engine.log 2>&1; echo "engine-suite exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; cmake -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" && cmake --build build-asan -j8'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ASAN_OPTIONS=detect_leaks=0 ./build-asan/EngineCorrectnessTests --gtest_color=no > .agent/results/LOB-002-engine-asan.log 2>&1; echo "asan-engine exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ASAN_OPTIONS=detect_leaks=0 ./build-asan/LimitOrderBookTests --gtest_color=no > .agent/results/LOB-002-upstream-asan.log 2>&1; echo "asan-upstream exit=$?"'
+  - 'grep -n "getNextOrder\|snapshot\|setFillSink\|struct FillEvent" Limit_Order_Book/Book.hpp Limit_Order_Book/Order.hpp | wc -l | grep -qE "[4-9]"'
+  - 'grep -c "std::cout" Limit_Order_Book/Book.cpp | head -1'
+  - git log --oneline -6
+
+risk: high
+timeout_min: 150
+max_attempts: 2
