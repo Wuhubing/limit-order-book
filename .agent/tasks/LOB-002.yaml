@@ -97,11 +97,32 @@ context: |
     (duplicate id, modify crossing, prints are irrelevant to asserts) the tests
     must FAIL before your fix commit and PASS after — commit order proves it.
 
-  HONESTY RULES: never claim a test passed that did not run. If an upstream
+  Honesty rules: never claim a test passed that did not run. If an upstream
   regression test (test/LimitOrderBookTests.cpp, test/ExampleOrdersTests.cpp —
   DO NOT EDIT either file) fails after your changes, that is a real regression:
   fix the ENGINE, not the test. Existing tests must stay green (they exercise
   stop paths heavily — the AVL delete rework must preserve them).
+
+  RESUME STATE (important — a previous session was interrupted mid-work):
+  - The repro-tests commit exists: c25f5b7 (test/CMakeLists.txt adds an
+    EngineCorrectnessTests target; test/EngineCorrectnessTests.cpp has RED tests
+    for duplicate-id reject and modify-to-crossing).
+  - UNCOMMITTED engine work is present in the working tree right now:
+    Limit_Order_Book/Book.cpp (~313 changed lines), Book.hpp, Limit.cpp
+    (destructor surgery removed). This is the bulk of the fix, mid-edit and NOT
+    YET DEBUGGED: with these edits the upstream suite CRASHES (exit 139, SIGSEGV)
+    at LimitOrderBookTests.TestAddingSellLimitOrderWhichIsAMarketOrder — at the
+    clean commit the same tests pass. DO NOT discard or reset this work; keep it,
+    debug it, finish it, and commit it in logical fix commits (theming per the
+    goal). Verify with a clean incremental rebuild that the crash is gone and
+    both suites pass before committing.
+  - CRITICAL PATH RULE: never read from or write to /tmp or any path outside the
+    worktree — permission is auto-rejected and the session dies. Keep ALL scratch,
+    logs, backups, and outputs inside the worktree (e.g. .agent/results/scratch/,
+    build/, test logs). For a pre-edit backup use `cp Book.cpp .agent/results/scratch/`.
+  - The engine work may be incomplete vs docs/semantics.md (e.g. validation,
+    fill-sink, snapshot, getNextOrder may be missing or half-done) — audit the
+    working tree against semantics.md and finish everything listed in the goal.
 
 worker:
   type: deep
