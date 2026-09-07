@@ -31,6 +31,11 @@ Limit* Order::getParentLimit() const
     return parentLimit;
 }
 
+Order* Order::getNextOrder() const
+{
+    return nextOrder;
+}
+
 void Order::partiallyFillOrder(int orderedShares)
 {
     shares -= orderedShares;

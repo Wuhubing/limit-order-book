@@ -17,3 +17,14 @@ add_test(
     NAME ${This}
     COMMAND ${This}
 )
+
+add_executable(EngineCorrectnessTests EngineCorrectnessTests.cpp)
+target_link_libraries(EngineCorrectnessTests PUBLIC
+    gtest_main
+    LimitOrderBook_lib
+)
+
+add_test(
+    NAME EngineCorrectnessTests
+    COMMAND EngineCorrectnessTests
+)
