@@ -10,7 +10,14 @@ goal: |
   branch, never push.
 
 context: |
-  Repo: /Users/ww/projects/limit-order-book. Base already includes LOB-001's
+  YOUR WORKING ROOT IS THE WORKTREE YOU ARE RUNNING IN. Use ONLY relative paths
+  from that root (docs/, Limit_Order_Book/, test/, ...). Everything you need —
+  sources, tests, docs/semantics.md, docs/issues-register.md, CMakeLists.txt — is
+  a subdirectory of the worktree; do NOT reference the parent repository path, it
+  will be treated as external and file access will be rejected. Confirm with `pwd`
+  and `ls` first.
+
+  Base already includes LOB-001's
   build bootstrap (googletest via FetchContent when googletest/ absent) — configure
   with: export PATH="/opt/homebrew/bin:$PATH" (cmake/ninja live there) then
   `cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8`.

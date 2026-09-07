@@ -15,7 +15,13 @@ goal: |
   docs/semantics.md) run against the engine after every request.
 
 context: |
-  Repo: /Users/ww/projects/limit-order-book (worktree on task/LOB-002's merged main —
+  YOUR WORKING ROOT IS THE WORKTREE YOU ARE RUNNING IN. Use ONLY relative paths
+  from that root (docs/, Limit_Order_Book/, reference/, test/, ...). Everything
+  you need is a subdirectory of the worktree; do NOT reference the parent
+  repository path — it is treated as external and file access is auto-rejected.
+  Confirm with `pwd` and `ls` first.
+
+  Worktree is on task/LOB-002's merged main —
   LOB-002 engine v1 already merged: validation rejects, duplicate-id rejection,
   modify-to-crossing execution, inert Limit destructor, Book-side AVL delete,
   print-free engine, FillEvent sink, Order::getNextOrder, Book::snapshot()).
