@@ -1,0 +1,134 @@
+task_id: LOB-005
+
+goal: |
+  Stage D, experiment A (direction 1: order/lifetime memory management) — replace
+  the per-order/per-level `new`/`delete` churn in the engine with address-stable,
+  chunked slab pools owned by Book, covering every creation and destruction path
+  (resting add, crossing add, modify full-fill, cancel, market full/partial
+  consumption, stop & stop-limit paths that share the allocator, Book teardown).
+  ENGINE SEMANTICS ARE FROZEN: every existing test (upstream 123, engine 18,
+  differential 19 incl. I1-I7 invariant checks), the reference model, and the
+  canonical corpus format must remain untouched and green. The deliverable is the
+  pool implementation + evidence of its measured effect and its limits.
+
+context: |
+  YOUR WORKING ROOT IS THE WORKTREE. Relative paths only; never the parent repo
+  path; never /tmp (read-only + auto-rejected). BUILD:
+  export PATH="/opt/homebrew/bin:$PATH" && cmake -B build -G Ninja
+  -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8. Test binaries:
+  build/test/LimitOrderBookTests (123), build/test/EngineCorrectnessTests (18),
+  build/test/DifferentialTests (19, includes the 20-seed differential fuzz whose
+  invariant checker I6 verifies AVL balance by recursive true-height recompute —
+  your change must keep every tree/queue invariant). Bench: build/bench/lob_bench.
+
+  PROFILING EVIDENCE (Hermes, macOS `sample`, 6s, Release -O2, Apple M4 Pro):
+  large_low_density load (~30k price levels, 60K req/s): Book::getLimitHeight
+  recursion 59% of samples; operator new/free <0.2%. add_cancel_dense load
+  (1.26M req/s): getLimitHeight 42%; allocation <0.5%. Allocation is therefore a
+  SECONDARY cost: the pool experiment's honest expectation is a small-to-moderate
+  win (raw malloc/free elimination + better cache locality from chunk-adjacent
+  Order objects during FIFO list walks), NOT a headline gain. The experiment must
+  MEASURE and REPORT that honestly, including remaining allocations.
+
+  Current allocation sites (read Book.cpp / Order.cpp / Limit.cpp carefully first):
+  - Order creation: addLimitOrder (resting remainder), addStopOrder, addStopLimitOrder.
+  - Order destruction: cancelLimitOrder, cancelStopOrder, cancelStopLimitOrder,
+    modifyLimitOrder (full-fill path), marketOrderHelper (full consumption loop),
+    executeStopOrders, stopLimitOrderToLimitOrder/existingOrderAsMarketOrder paths,
+    Book::~Book (deletes every live order via orderMap).
+  - Limit creation: addLimit, addStop. Destruction: deleteLimit, deleteStopLevel,
+    Book::~Book (post-order deleteTree).
+  Every one of these must route through the pools — no leftover `new`/`delete` of
+  Order or Limit anywhere in the engine (grep must prove it).
+
+  DESIGN SPEC (implement cleanly, adjust only with justification):
+  - New files Limit_Order_Book/Pool.hpp (+.cpp): template or two concrete pools
+    (OrderPool, LimitPool) with: chunked slab growth (e.g. 4096 objects/chunk,
+    doubling chunk count, NOT moving objects ever — address stability is required
+    because Orders/Limits are linked by raw pointers), an intrusive free-list of
+    dead slots (no per-object header allocation; store next-free in the dead
+    object's first word or via a side free-list), O(1) allocate/release, automatic
+    chunk allocation on exhaustion (capacity growth is allowed and must be
+    documented), and teardown that frees every chunk. Pool must be safe under the
+    engine's ownership model: an Order is released exactly once (when removed from
+    orderMap AND unlinked from its queue); a Limit is released exactly once (when
+    removed from maps AND tree). Never release twice, never use after release —
+    the differential suite + UBSan + the I6/I2/I3 invariants are the guards.
+  - Book owns the pools (members). All constructor sites become
+    poolOrder_.construct(...) (placement-new into a slot) and destruction sites
+    poolOrder_.destroy(ptr) (call destructor + push slot to free list). Same for
+    Limit. No other engine behavior changes. No change to any public API.
+  - STOP paths allocate through the same pools (they share Order/Limit types).
+  - Remaining allocations AFTER the change (must be documented in the PR/commit):
+    unordered_map node allocations in orderMap/limitBuyMap/limitSellMap/stopMap on
+    insert/erase, fill-sink vector growth, pool chunk growth, and the benchmark's
+    own structures. Do NOT claim "zero-alloc engine".
+  - Bench evidence hooks: the existing lob_bench allocation counters (global
+    operator new/delete override linked only into lob_bench) will show the per-op
+    allocation drop; run bench on fill_dense + add_cancel_dense + level_churn
+    (corpora generate fast for these) batch+latency and record before/after
+    numbers in the commit message / a short results note under results/stageD/ if
+    you generate it. If corpora are missing in the worktree, regenerate with
+    `./build/bench/lob_bench gen --workload bench/workloads/<n>.json --out
+    build/benchdata/<n>.txt` (same seeds => identical sha256 as committed results).
+    Large_* corpora take ~4 min to generate — optional for this task.
+
+  Honesty rules: never claim a test/measurement that did not run; report measured
+  deltas; if the pool shows no gain or a regression on some load, keep the record.
+  All tests must pass before commit. Commit as one focused commit (or two: pool +
+  evidence note) on this branch only.
+
+worker:
+  type: deep
+
+scope:
+  allowed:
+    - Limit_Order_Book/Pool.hpp
+    - Limit_Order_Book/Pool.cpp
+    - Limit_Order_Book/Book.hpp
+    - Limit_Order_Book/Book.cpp
+    - Limit_Order_Book/Order.hpp
+    - Limit_Order_Book/Order.cpp
+    - Limit_Order_Book/Limit.hpp
+    - Limit_Order_Book/Limit.cpp
+    - CMakeLists.txt
+    - results/stageD/**
+  forbidden:
+    - reference/**
+    - tools/**
+    - test/**
+    - bench/**
+    - scripts/**
+    - Process_Orders/**
+    - Generate_Orders/**
+    - main.cpp
+    - .agent/**
+    - docs/**
+
+constraints:
+  - Zero behavior change: public API, semantics.md semantics, fill events, snapshot output all identical
+  - Every Order/Limit allocation and deallocation site routes through the pools (grep-clean: no `new Order`, `new Limit`, `delete order`, `delete limit` patterns left in engine sources)
+  - Pools never move live objects (address stability); capacity growth allowed and documented
+  - Existing tests must stay green untouched; no edits to reference/, bench/, tools/, test/
+  - Do not change CMake test targets; only add the Pool sources to the library target if needed
+
+acceptance:
+  - All three test suites pass under Release and UBSan (differential incl. I1-I7 against the pooled engine)
+  - Grep shows zero direct new/delete of Order/Limit in Limit_Order_Book/
+  - Bench alloc counters show the per-op allocation reduction on fill_dense/add_cancel_dense/level_churn (numbers recorded in the commit or results/stageD/)
+  - Remaining allocation sources documented (map nodes, sink vector, chunk growth)
+  - Honest performance statement: measured deltas per load, including any load with no gain
+
+verification:
+  - export PATH="/opt/homebrew/bin:$PATH" && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/LimitOrderBookTests --gtest_color=no > .agent/results/LOB-005-upstream.log 2>&1; echo "upstream exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/EngineCorrectnessTests --gtest_color=no > .agent/results/LOB-005-engine.log 2>&1; echo "engine exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/DifferentialTests --gtest_color=no > .agent/results/LOB-005-diff.log 2>&1; echo "diff exit=$?"'
+  - 'grep -nE "new (Order|Limit)|delete (order|limit|headOrder|newOrder)" Limit_Order_Book/*.cpp | wc -l | grep -q "^0$" || echo "WARN: direct new/delete found"; test -f Limit_Order_Book/Pool.hpp'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; cmake -B build-ubsan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=undefined -fno-omit-frame-pointer" && cmake --build build-ubsan -j8 > /dev/null 2>&1'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build-ubsan/test/DifferentialTests --gtest_color=no > .agent/results/LOB-005-diff-ubsan.log 2>&1; echo "ubsan-diff exit=$?"'
+  - git log --oneline -3
+
+risk: medium
+timeout_min: 150
+max_attempts: 2
