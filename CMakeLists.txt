@@ -50,6 +50,7 @@ add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
 
 add_subdirectory(test)
+add_subdirectory(tools)
 add_subdirectory(bench)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

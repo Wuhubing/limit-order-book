@@ -1,0 +1,12 @@
+replay v1 16 10 11 1 0 4
+fill 0 5 1 100 10 buy
+fill 1 5 2 101 20 buy
+fill 2 5 3 102 30 buy
+fill 3 5 4 103 40 buy
+fill 4 9 5 104 100 sell
+fill 5 9 6 99 25 sell
+fill 6 9 7 98 25 sell
+fill 7 9 8 97 25 sell
+fill 8 11 9 96 25 buy
+fill 9 15 14 100 10 sell
+state empty
