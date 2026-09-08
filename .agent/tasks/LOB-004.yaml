@@ -1,0 +1,157 @@
+task_id: LOB-004
+
+goal: |
+  Stage C — reproducible performance-measurement harness for the FIXED engine
+  (engine v1, no further engine changes in this task). Deliver:
+  (1) a bench/ directory with a `lob_bench` executable (own CMake target) that
+  measures ENGINE SERVICE TIME ONLY (documented: no network/queue/parse/rng in
+  the timed region) in two modes — batch throughput (whole-corpus wall time) and
+  per-request latency (steady_clock around each command, p50/p95/p99 overall and
+  per op type, clock-overhead estimate printed);
+  (2) seven committed workload config JSONs covering the required load matrix;
+  (3) scripts/run_bench.sh driving all loads reproducibly into committed raw
+  result JSONs under results/stageC/;
+  (4) allocation statistics (operator new/delete counters linked into the bench
+  binary only — alloc count/bytes/live + ru_maxrss) and full environment/commit
+  stamping in every result JSON.
+
+context: |
+  YOUR WORKING ROOT IS THE WORKTREE YOU ARE RUNNING IN. Use ONLY relative paths
+  (docs/, Limit_Order_Book/, reference/, bench/, scripts/, ...). Never touch the
+  parent repo path or /tmp — file access outside the worktree is auto-rejected,
+  and /tmp is read-only here anyway. Keep all scratch inside the worktree (e.g.
+  build/benchdata/). Confirm with `pwd` and `ls` first.
+
+  Repo state: engine v1 on main (validation, duplicate-id reject, modify-to-crossing,
+  AVL delete rework, print-free, FillEvent sink via Book::setFillSink(vector<FillEvent>*),
+  snapshot()). Existing: reference/ (independent oracle + corpus machinery),
+  tools/diff_fuzz.cpp, test/ (123 upstream + 18 engine + 19 differential tests).
+  BUILD: export PATH="/opt/homebrew/bin:$PATH" then
+  cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8.
+  Test binaries land at build/test/. Compiler: Apple clang 16.0.0, macOS 26.4.1,
+  Apple M4 Pro. ASan is broken on this host (documented) — bench does not need it.
+
+  REUSE, do not duplicate:
+  - reference/Command.hpp/.cpp: lobref::Command, parseCorpus(text), serializeCorpus.
+  - reference/WorkloadGenerator.hpp/.cpp: lobref::GeneratorParams + generateWorkload(params).
+  - GeneratorParams fields: num_requests, seed, weightAdd/Mod/Cxl/Mkt, priceCenter,
+    priceSpread, qtyMin, qtyMax, activeMin, activeMax, degenerateRate, crossingRate.
+    Set degenerateRate=0 for all bench workloads (bench measures valid-op service
+    time; reject paths are covered by the differential suite).
+  Link those .cpp files into the lob_bench target (read-only — do NOT edit
+  reference/** or Limit_Order_Book/** in this task).
+
+  Workload matrix (7 committed config JSONs under bench/workloads/, prices in
+  ticks, qty ints; generator clamps price to [1,1_000_000]; center 100000):
+    1. add_cancel_dense.json      — Add 55 / Mod 5 / Cxl 35 / Mkt 5, crossingRate .15,
+       active 800-1500, spread 400, qty 1-200
+    2. fill_dense.json            — Add 45 / Mod 5 / Cxl 15 / Mkt 35 (large qty),
+       crossingRate .6, active 500-1200, spread 200, qty 100-2000
+    3. level_churn.json           — Add 45 / Mod 5 / Cxl 45 / Mkt 5, active 1000-2000,
+       spread 30 (narrow: levels constantly created/deleted), qty 1-300
+    4. small_low_density.json     — Add 50/Mod 10/Cxl 30/Mkt 10, active 60-120,
+       spread 5000 (~1 order/level), qty 1-500
+    5. small_high_density.json    — same weights, active 60-120, spread 20 (deep queues)
+    6. large_low_density.json     — same weights, active 6000-9000, spread 30000
+    7. large_high_density.json    — same weights, active 6000-9000, spread 250
+  num_requests: 300000, seed: 20260907 (same seed across all seven — different
+  shapes come from params only). Keep each config JSON minimal and self-describing
+  (fields mirror GeneratorParams + a "load" label + comment field).
+
+  Bench binary CLI (design):
+    lob_bench gen   --workload bench/workloads/<name>.json --out <corpus.txt>
+                    (deterministic; writes corpus + prints sha256 of the corpus file)
+    lob_bench run   --workload <json> --corpus <corpus.txt> --rounds N
+                    --mode batch|latency --out <result.json>
+    lob_bench selfcheck  (runs a tiny built-in statistical sanity check: p50<=p95<=p99,
+                    clock-overhead estimate, and reports alloc counters for an empty loop)
+  Batch mode: attach fill sink to a pre-reserved vector, replay the parsed corpus on a
+  FRESH Book per round, time each whole round with steady_clock, exclude parse/generation/
+  sink-hash; report mean/median/min/max round time and req/s (denominator = ALL commands
+  incl. cancels — state this in the JSON field name e.g. "reqs_per_sec_all_ops").
+  Latency mode: per-command steady_clock now/now around each Book call into per-op-type
+  vectors (Add/Mod/Cxl/Mkt), plus an "all" vector; compute p50/p95/p99 per bucket and
+  overall; measure and report clock overhead (e.g. time 1e6 empty now/now pairs).
+  Consume output: after each round, hash the fill events (uint64 fold over every field)
+  and assert the hash is identical across rounds of the same corpus (determinism guard);
+  include the hash in the result JSON. Fresh Book per round = identical initial state.
+  Warmup: 1 warmup round before measured rounds; --rounds defaults to 7.
+  Allocation stats: a bench-only TU overriding global operator new/delete with
+  non-atomic counters (single-threaded bench) recording count/bytes allocated/freed;
+  report totals + live bytes per round boundary and ru_maxrss at process end. Do NOT
+  link this TU into the engine library or test binaries. Note in code comments that the
+  counters themselves add a small constant overhead to the measured region (they do NOT
+  count themselves; keep them minimal/plain).
+  Stamp every result JSON: git commit (compile-time define LOB_GIT_COMMIT injected by
+  CMake via `git -C ${CMAKE_SOURCE_DIR} rev-parse HEAD`), compiler+flags strings
+  (__VERSION__ or clang macros), host (uname via sysctl at runtime), workload config,
+  corpus sha256, seed, date. All fields required — no empty env sections.
+  Determinism: no randomness inside the timed region; identical config => identical
+  corpus (sha256 check when rerunning gen) and identical fill-hash across rounds.
+
+  scripts/run_bench.sh: for each of the 7 workloads: gen corpus (skip if present and
+  sha256 matches config), run batch mode and latency mode (rounds=7), write
+  results/stageC/<name>.batch.json and .latency.json. Must be re-runnable; prints a
+  one-line summary table at the end. Also provide scripts/bench_compare.sh DIR_A DIR_B
+  that alternates batch runs of two binaries/commits (A,B,A,B,... x rounds) over the
+  SAME corpora and writes side-by-side JSON (this is the Stage-D interleaving tool; it
+  must exist now even if unused until then).
+
+  Honesty rules: never claim a measurement that did not run; record raw numbers only;
+  if a workload crashes or a mode errors, exit non-zero and say which load/mode; do not
+  tune workload definitions to make numbers look good — the seven configs above are
+  fixed by this contract.
+
+worker:
+  type: deep
+
+scope:
+  allowed:
+    - bench/**
+    - scripts/run_bench.sh
+    - scripts/bench_compare.sh
+    - CMakeLists.txt
+    - .gitignore
+  forbidden:
+    - Limit_Order_Book/**
+    - reference/**
+    - tools/**
+    - test/**
+    - Process_Orders/**
+    - Generate_Orders/**
+    - main.cpp
+    - .agent/**
+    - docs/**
+
+constraints:
+  - Do not modify engine, reference model, or any test/tool source
+  - No randomness in timed regions; fresh Book per round
+  - Degenerate-rate 0 in all seven committed workloads
+  - Allocation counters only in the lob_bench binary (never in the engine library or tests)
+  - Do not edit docs/ or .agent/; commit only within scope
+
+acceptance:
+  - lob_bench target builds and gen/run/selfcheck work; corpus sha256 reproducible
+  - run --mode batch reports round times + req/s (all ops incl. cancels in denominator, field named accordingly)
+  - run --mode latency reports p50/p95/p99 overall and per Add/Mod/Cxl/Mkt plus clock-overhead estimate
+  - fill-hash identical across rounds of one corpus (determinism guard asserted)
+  - result JSONs contain every required stamp field (commit, compiler, host, config, corpus sha256, seed, date)
+  - 7 workload configs committed under bench/workloads/ matching the matrix above
+  - scripts/run_bench.sh runs all 7 loads end-to-end and writes results/stageC/ JSONs; bench_compare.sh alternates two binaries
+  - results/stageC/ raw JSONs from a full local run are committed as the Stage C baseline dataset
+
+verification:
+  - export PATH="/opt/homebrew/bin:$PATH" && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ls bench/workloads/*.json | wc -l | grep -q "^ *7$"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/bench/lob_bench selfcheck > .agent/results/LOB-004-selfcheck.log 2>&1; echo "selfcheck exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/bench/lob_bench gen --workload bench/workloads/fill_dense.json --out build/benchdata/fill_dense.txt > .agent/results/LOB-004-gen.log 2>&1; echo "gen exit=$?"; grep -o "sha256: [0-9a-f]*" .agent/results/LOB-004-gen.log | head -1'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/bench/lob_bench run --workload bench/workloads/fill_dense.json --corpus build/benchdata/fill_dense.txt --rounds 3 --mode batch --out build/benchdata/fill_dense.batch.json > .agent/results/LOB-004-batch.log 2>&1; echo "batch exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/bench/lob_bench run --workload bench/workloads/fill_dense.json --corpus build/benchdata/fill_dense.txt --rounds 3 --mode latency --out build/benchdata/fill_dense.latency.json > .agent/results/LOB-004-lat.log 2>&1; echo "latency exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/LimitOrderBookTests --gtest_color=no > /dev/null 2>&1; echo "upstream-regression exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; python3 -c "import json;d=json.load(open(\"build/benchdata/fill_dense.batch.json\"));assert \"reqs_per_sec_all_ops\" in d or any(\"reqs_per_sec\" in k for k in d), d.keys();print(\"batch json ok\")"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; bash scripts/run_bench.sh --quick 2>&1 | tail -3; ls results/stageC/*.json 2>/dev/null | wc -l'
+  - git log --oneline -3
+
+risk: medium
+timeout_min: 150
+max_attempts: 2
