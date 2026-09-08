@@ -75,7 +75,7 @@ cmake --build build -j8
 ./build/test/DifferentialTests          # 20 seeds x 2000 reqs, per-request diff
 
 # differential replay of any corpus (engine vs reference, exit 0 = identical)
-./build/tools/diff_fuzz --replay testdata/corpora/mix-heavy.txt
+./build/test/diff_fuzz --replay testdata/corpora/mix-heavy.txt
 
 # benchmark one workload (batch + per-op latency)
 ./build/bench/lob_bench gen  --workload bench/workloads/fill_dense.json --out build/benchdata/fill_dense.txt

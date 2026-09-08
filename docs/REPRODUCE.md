@@ -39,9 +39,9 @@ ubuntu-latest, `-fsanitize=address,undefined`, `ASAN_OPTIONS=detect_leaks=1`).
 ## 3. Differential replay & adversarial corpora
 
 ```sh
-./build/tools/diff_fuzz --replay testdata/corpora/mix-heavy.txt        # exit 0
+./build/test/diff_fuzz --replay testdata/corpora/mix-heavy.txt        # exit 0
 for f in testdata/corpora/adversarial/*.txt; do
-  ./build/tools/diff_fuzz --replay "$f" || echo "FAIL $f"
+  ./build/test/diff_fuzz --replay "$f" || echo "FAIL $f"
 done
 ```
 Exit codes: 0 identical (engine == reference model), 1 divergence (saved +
