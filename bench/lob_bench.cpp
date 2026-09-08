@@ -38,8 +38,11 @@
 #include <stdexcept>
 #include <string>
 #include <sys/resource.h>
+#ifdef __APPLE__
 #include <sys/sysctl.h>
+#endif
 #include <sys/utsname.h>
+#include <unistd.h>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -224,10 +227,15 @@ lobref::GeneratorParams loadParams(const bench::Json& cfg)
 
 std::string hostSysctl(const char* name)
 {
+#ifdef __APPLE__
     char buf[512];
     std::size_t len = sizeof(buf);
     if (sysctlbyname(name, buf, &len, nullptr, 0) != 0) return "unknown";
     return std::string(buf);
+#else
+    (void)name;
+    return "unknown";
+#endif
 }
 
 std::string nowIso8601Utc()
@@ -246,8 +254,13 @@ bench::Json buildEnvJson()
     uname(&u);
 
     int ncpu = 0;
+#ifdef __APPLE__
     std::size_t len = sizeof(ncpu);
     sysctlbyname("hw.ncpu", &ncpu, &len, nullptr, 0);
+#else
+    long n = sysconf(_SC_NPROCESSORS_ONLN);
+    if (n > 0) ncpu = static_cast<int>(n);
+#endif
 
     bench::Json host;
     host["sysname"] = u.sysname;
