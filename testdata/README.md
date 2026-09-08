@@ -45,6 +45,14 @@ Configs are committed; corpus text is regenerated deterministically by
 `lob_bench gen` (sha256-pinned; cached in build/benchdata/). Replay validity of a
 workload corpus can be checked with `diff_fuzz --replay` (exit 0).
 
+### D. Real market data (LOBSTER NASDAQ samples) — `testdata/real/`
+AAPL and MSFT 2012-06-21 full-day NASDAQ order flow from LOBSTER's free sample
+files, converted to the canonical corpus format (mapping + honest limitations in
+`testdata/real/README.md`). Committed: 50,000-op slices + golden records; full
+days (~380k/~663k ops) regenerable via the documented download+convert commands.
+Validated: differential identity (engine == reference) over the full days and
+byte-identical replay determinism.
+
 ## Regenerating / validating everything
 ```sh
 # corpora A: (contents committed; regenerate with seeds 100/101/102 via the generator
