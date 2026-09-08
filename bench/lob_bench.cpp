@@ -275,7 +275,11 @@ bench::Json buildEnvJson()
     env["git_commit"] = LOB_GIT_COMMIT;
     env["compiler"] = LOB_CXX_COMPILER;
     env["compiler_id_macro"] = __VERSION__;
+#ifdef __clang__
     env["clang_version_macro"] = __clang_version__;
+#else
+    env["clang_version_macro"] = "(not clang)";
+#endif
     env["cxx_flags"] = LOB_CXX_FLAGS;
     env["build_type"] = LOB_BUILD_TYPE;
     env["host"] = host;
