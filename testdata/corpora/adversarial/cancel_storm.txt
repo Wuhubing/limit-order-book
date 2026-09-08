@@ -1,0 +1,18 @@
+Add 1 1 10 100
+Add 2 1 10 100
+Add 3 1 10 100
+Add 4 1 10 100
+Add 5 0 50 101
+Cxl 2
+Cxl 999
+Cxl 4
+Cxl 1
+Add 6 1 10 100
+Cxl 3
+Cxl 6
+Add 7 0 40 101
+Cxl 5
+Cxl 7
+Cxl 8
+Add 9 1 10 100
+Cxl 9
