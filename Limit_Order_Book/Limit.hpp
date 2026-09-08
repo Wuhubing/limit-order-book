@@ -15,6 +15,8 @@ private:
     Order *headOrder;
     Order *tailOrder;
 
+    int height;
+
     friend class Order;
 public:
     Limit(int _limitPrice, bool _buyOrSell, int _size=0, int _totalVolume=0);
@@ -31,6 +33,8 @@ public:
     void setParent(Limit* newParent);
     void setLeftChild(Limit* newLeftChild);
     void setRightChild(Limit* newRightChild);
+    int getHeight() const;
+    void setHeight(int newHeight);
     void partiallyFillTotalVolume(int orderedShares);
 
     void append(Order *_order);

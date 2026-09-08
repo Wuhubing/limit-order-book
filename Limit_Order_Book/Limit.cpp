@@ -5,7 +5,7 @@
 Limit::Limit(int _limitPrice, bool _buyOrSell, int _size, int _totalVolume)
     : limitPrice(_limitPrice), buyOrSell(_buyOrSell), size(_size), totalVolume(_totalVolume),
     parent(nullptr), leftChild(nullptr), rightChild(nullptr),
-    headOrder(nullptr), tailOrder(nullptr) {}
+    headOrder(nullptr), tailOrder(nullptr), height(1) {}
 
 Limit::~Limit() {}
 
@@ -62,6 +62,16 @@ void Limit::setLeftChild(Limit* newLeftChild)
 void Limit::setRightChild(Limit* newRightChild)
 {
     rightChild = newRightChild;
+}
+
+int Limit::getHeight() const
+{
+    return height;
+}
+
+void Limit::setHeight(int newHeight)
+{
+    height = newHeight;
 }
 
 void Limit::partiallyFillTotalVolume(int orderedShares)

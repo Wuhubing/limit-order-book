@@ -4,6 +4,41 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
+namespace {
+
+// Independent recursive true-height recomputation (the same method I6 uses),
+// used to detect any drift of the engine's cached per-node heights.
+int trueHeight(Limit* n)
+{
+    if (n == nullptr) {
+        return 0;
+    }
+    return 1 + std::max(trueHeight(n->getLeftChild()), trueHeight(n->getRightChild()));
+}
+
+void expectHeightConsistent(const char* treeName, Limit* root)
+{
+    if (root == nullptr) {
+        return;
+    }
+    EXPECT_EQ(root->getHeight(), trueHeight(root))
+        << "cached height drift in " << treeName << " tree at price " << root->getLimitPrice();
+    expectHeightConsistent(treeName, root->getLeftChild());
+    expectHeightConsistent(treeName, root->getRightChild());
+}
+
+void expectAllHeightsConsistent(const Book& book)
+{
+    expectHeightConsistent("buy", book.getBuyTree());
+    expectHeightConsistent("sell", book.getSellTree());
+    expectHeightConsistent("stopBuy", book.getStopBuyTree());
+    expectHeightConsistent("stopSell", book.getStopSellTree());
+}
+
+} // namespace
+
 struct EngineCorrectnessTests : public ::testing::Test
 {
     Book* book;
@@ -347,4 +382,85 @@ TEST_F(EngineCorrectnessTests, NullFillSinkIsSafe)
     book->addLimitOrder(1, false, 10, 100);
     book->marketOrder(2, true, 5);
     EXPECT_EQ(book->searchOrderMap(1)->getShares(), 5);
+}
+
+// LOB-006: the cached per-node height must equal the independently recomputed
+// true subtree height at every node after every mutation. Exercised across a
+// deterministic churn that forces AVL rotations, root deletion, the
+// successor==direct-right-child delete case, and single-child splices.
+TEST_F(EngineCorrectnessTests, HeightCacheMatchesTrueHeightAcrossChurn)
+{
+    // Build a multi-level buy tree then churn it with cancels/modifies.
+    for (int p = 100; p < 130; ++p) {
+        book->addLimitOrder(p, true, 1, p);
+        expectAllHeightsConsistent(*book);
+    }
+    // Ascending insert ladder + alternating deletes (level churn -> rotations).
+    for (int p = 100; p < 130; ++p) {
+        book->addLimitOrder(1000 + p, false, 1, p);
+        expectAllHeightsConsistent(*book);
+    }
+    for (int p = 100; p < 130; p += 2) {
+        book->cancelLimitOrder(p);           // buy side delete
+        book->cancelLimitOrder(1000 + p);    // sell side delete
+        expectAllHeightsConsistent(*book);
+    }
+
+    // Root deletion (two children, successor == direct right child).
+    // Tree: 50 root, 30 left (40 right of 30), 70 right; deleting 50 splices
+    // 70 (no left child) up in its place.
+    {
+        Book b;
+        b.addLimitOrder(1, true, 1, 50);
+        b.addLimitOrder(2, true, 1, 30);
+        b.addLimitOrder(3, true, 1, 70);
+        b.addLimitOrder(4, true, 1, 40);
+        expectAllHeightsConsistent(b);
+        b.cancelLimitOrder(1); // delete root 50, successor == right child 70
+        expectAllHeightsConsistent(b);
+    }
+
+    // Root deletion with a single child.
+    {
+        Book b;
+        b.addLimitOrder(1, true, 1, 50);
+        b.addLimitOrder(2, true, 1, 30);
+        expectAllHeightsConsistent(b);
+        b.cancelLimitOrder(1); // root with one child
+        expectAllHeightsConsistent(b);
+    }
+
+    // Deep two-child deletion (successor is not the direct right child).
+    {
+        Book b;
+        for (int p = 1; p <= 31; ++p) {
+            b.addLimitOrder(p, true, 1, p * 10);
+        }
+        expectAllHeightsConsistent(b);
+        b.cancelLimitOrder(16); // interior node with two children and a deep successor
+        expectAllHeightsConsistent(b);
+        b.cancelLimitOrder(1);
+        b.cancelLimitOrder(31);
+        expectAllHeightsConsistent(b);
+    }
+}
+
+// LOB-006: stop trees get the same cached-height treatment; I6 does not cover
+// them, so pin their height consistency explicitly (stop + stop-limit churn).
+TEST_F(EngineCorrectnessTests, HeightCacheMatchesTrueHeightStopTrees)
+{
+    for (int p = 100; p < 120; ++p) {
+        book->addStopOrder(p, true, 1, p);
+        book->addStopLimitOrder(500 + p, false, 1, p + 1000, p);
+        expectAllHeightsConsistent(*book);
+    }
+    for (int p = 100; p < 120; p += 2) {
+        book->cancelStopOrder(p);
+        book->cancelStopLimitOrder(500 + p);
+        expectAllHeightsConsistent(*book);
+    }
+    for (int p = 100; p < 120; ++p) {
+        book->modifyStopOrder(500 + p, 2, p + 1);
+        expectAllHeightsConsistent(*book);
+    }
 }

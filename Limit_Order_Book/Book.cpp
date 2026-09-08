@@ -6,6 +6,26 @@
 #include <random>
 #include <iterator>
 
+namespace {
+
+// Cached-height helpers (LOB-006): the engine stores each node's subtree height
+// so AVL balance checks are O(1) instead of a recursive full-subtree recompute.
+// nullptr => height 0 (leaf => 1), matching Book::getLimitHeight's convention.
+inline int heightOf(const Limit* limit)
+{
+    return limit == nullptr ? 0 : limit->getHeight();
+}
+
+inline void refresh(Limit* node)
+{
+    if (node == nullptr) {
+        return;
+    }
+    node->setHeight(1 + std::max(heightOf(node->getLeftChild()), heightOf(node->getRightChild())));
+}
+
+} // namespace
+
 Book::Book() : buyTree(nullptr), sellTree(nullptr), lowestSell(nullptr), highestBuy(nullptr), 
             stopBuyTree(nullptr), stopSellTree(nullptr), highestStopSell(nullptr), lowestStopBuy(nullptr){}
 
@@ -649,10 +669,12 @@ Limit* Book::insert(Limit* root, Limit* limit, Limit* parent)
     if (limit->getLimitPrice() < root->getLimitPrice())
     {
         root->setLeftChild(insert(root->getLeftChild(), limit, root));
+        refresh(root);
         root = balance(root);
     } else if (limit->getLimitPrice() > root->getLimitPrice())
     {
         root->setRightChild(insert(root->getRightChild(), limit, root));
+        refresh(root);
         root = balance(root);
     }
 
@@ -670,10 +692,12 @@ Limit* Book::insertStop(Limit* root, Limit* limit, Limit* parent)
     if (limit->getLimitPrice() < root->getLimitPrice())
     {
         root->setLeftChild(insertStop(root->getLeftChild(), limit, root));
+        refresh(root);
         root = balanceStop(root);
     } else if (limit->getLimitPrice() > root->getLimitPrice())
     {
         root->setRightChild(insertStop(root->getRightChild(), limit, root));
+        refresh(root);
         root = balanceStop(root);
     }
     return root;
@@ -1210,8 +1234,8 @@ void Book::marketOrderHelper(int orderId, bool buyOrSell, int shares)
 
 // Get height difference between a limits children
 int Book::limitHeightDifference(Limit* limit) {
-    int l_height = getLimitHeight(limit->getLeftChild());
-    int r_height = getLimitHeight(limit->getRightChild());
+    int l_height = heightOf(limit->getLeftChild());
+    int r_height = heightOf(limit->getRightChild());
     int b_factor = l_height - r_height;
     return b_factor;
 }
@@ -1234,6 +1258,8 @@ Limit* Book::rr_rotate(Limit* parent) {
         tree = newParent;
     }
     parent->setParent(newParent);
+    refresh(parent);
+    refresh(newParent);
     return newParent;
 }
 
@@ -1255,6 +1281,8 @@ Limit* Book::ll_rotate(Limit* parent) {
         tree = newParent;
     }
     parent->setParent(newParent);
+    refresh(parent);
+    refresh(newParent);
     return newParent;
 }
 
@@ -1309,6 +1337,8 @@ Limit* Book::rr_rotateStop(Limit* parent) {
         tree = newParent;
     }
     parent->setParent(newParent);
+    refresh(parent);
+    refresh(newParent);
     return newParent;
 }
 
@@ -1330,6 +1360,8 @@ Limit* Book::ll_rotateStop(Limit* parent) {
         tree = newParent;
     }
     parent->setParent(newParent);
+    refresh(parent);
+    refresh(newParent);
     return newParent;
 }
 
@@ -1375,6 +1407,7 @@ void Book::rebalanceUpward(Limit* node, bool buyOrSell)
     {
         Limit* parent = node->getParent();
         bool isLeftChild = (parent != nullptr && parent->getLeftChild() == node);
+        refresh(node);
         Limit* newSubtree = balance(node);
         if (parent != nullptr)
         {
@@ -1399,6 +1432,7 @@ void Book::rebalanceUpwardStop(Limit* node, bool buyOrSell)
     {
         Limit* parent = node->getParent();
         bool isLeftChild = (parent != nullptr && parent->getLeftChild() == node);
+        refresh(node);
         Limit* newSubtree = balanceStop(node);
         if (parent != nullptr)
         {
