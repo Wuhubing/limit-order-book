@@ -6,6 +6,7 @@
 #include <random>
 #include <unordered_set>
 #include <cstdint>
+#include "Pool.hpp"
 
 class Limit;
 class Order;
@@ -51,6 +52,11 @@ private:
 
     std::vector<FillEvent>* fillSink = nullptr;
     uint64_t fillSeq = 0;
+
+    // Address-stable chunked slab pools owned by the Book. Every Order and
+    // Limit in the engine is constructed/destroyed through these; see Pool.hpp.
+    Pool<Order> poolOrder_;
+    Pool<Limit> poolLimit_;
 
     void addLimit(int limitPrice, bool buyOrSell);
     void addStop(int stopPrice, bool buyOrSell);
