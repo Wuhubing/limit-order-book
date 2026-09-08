@@ -1,0 +1,166 @@
+{
+  "allocation": {
+    "per_round": [
+      {
+        "alloc": {
+          "alloc_bytes": 28413760,
+          "alloc_count": 482765,
+          "freed_bytes": 18721640,
+          "live_bytes": 9692120
+        },
+        "round": 0
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 28413760,
+          "alloc_count": 482765,
+          "freed_bytes": 18721640,
+          "live_bytes": 9692120
+        },
+        "round": 1
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 28413760,
+          "alloc_count": 482765,
+          "freed_bytes": 18721640,
+          "live_bytes": 9692120
+        },
+        "round": 2
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 28413760,
+          "alloc_count": 482765,
+          "freed_bytes": 18721640,
+          "live_bytes": 9692120
+        },
+        "round": 3
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 28413760,
+          "alloc_count": 482765,
+          "freed_bytes": 18721640,
+          "live_bytes": 9692120
+        },
+        "round": 4
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 28413760,
+          "alloc_count": 482765,
+          "freed_bytes": 18721640,
+          "live_bytes": 9692120
+        },
+        "round": 5
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 28413760,
+          "alloc_count": 482765,
+          "freed_bytes": 18721640,
+          "live_bytes": 9692120
+        },
+        "round": 6
+      }
+    ],
+    "ru_maxrss_bytes": 91029504,
+    "total": {
+      "alloc_bytes": 227324288,
+      "alloc_count": 3862208,
+      "freed_bytes": 227317136,
+      "live_bytes": 7152
+    }
+  },
+  "clock_overhead_ns_per_now": 12.203146,
+  "clock_overhead_ns_per_pair": 24.406292,
+  "corpus_num_commands": 300000,
+  "corpus_sha256": "dc06f53509de6fdbcb9eff4709514d5623e37d80e75b39c79aac9e7411ba2631",
+  "env": {
+    "build_type": "Release",
+    "clang_version_macro": "16.0.0 (clang-1600.0.26.6)",
+    "compile_date": "Sep  7 2026 20:22:18",
+    "compiler": "AppleClang 16.0.0.16000026",
+    "compiler_id_macro": "Apple LLVM 16.0.0 (clang-1600.0.26.6)",
+    "cxx_flags": " -O2 -O3 -DNDEBUG",
+    "date": "2026-09-08T00:36:19Z",
+    "git_commit": "45c2ba1d8b4f5e718c541a9b329c46b42c3304f4",
+    "host": {
+      "machine": "arm64",
+      "model": "Mac16,8",
+      "ncpu": 14,
+      "nodename": "mac",
+      "release": "25.4.0",
+      "sysname": "Darwin",
+      "version": "Darwin Kernel Version 25.4.0: Thu Mar 19 19:33:25 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_T6041"
+    }
+  },
+  "fill_event_count": 209818,
+  "fill_hash": "0x855645b56e52b0a6",
+  "latency": {
+    "Add": {
+      "count": 1741320,
+      "max": 43291,
+      "min": 0,
+      "p50": 208,
+      "p95": 584,
+      "p99": 875
+    },
+    "Cxl": {
+      "count": 293510,
+      "max": 5291,
+      "min": 0,
+      "p50": 42,
+      "p95": 84,
+      "p99": 334
+    },
+    "Mkt": {
+      "count": 32872,
+      "max": 6125,
+      "min": 0,
+      "p50": 250,
+      "p95": 708,
+      "p99": 1042
+    },
+    "Mod": {
+      "count": 32298,
+      "max": 5542,
+      "min": 0,
+      "p50": 84,
+      "p95": 500,
+      "p99": 708
+    },
+    "all": {
+      "count": 2100000,
+      "max": 43291,
+      "min": 0,
+      "p50": 83,
+      "p95": 583,
+      "p99": 875
+    }
+  },
+  "mode": "latency",
+  "rounds_measured": 7,
+  "schema_version": 1,
+  "seed": 20260907,
+  "warmup_rounds": 1,
+  "workload": {
+    "activeMax": 2000,
+    "activeMin": 1000,
+    "comment": "Narrow 30-tick spread (Add 45 / Cxl 45) makes levels be constantly created and deleted; 1000-2000 active. degenerateRate=0.",
+    "crossingRate": 0.25,
+    "degenerateRate": 0,
+    "load": "level_churn",
+    "num_requests": 300000,
+    "priceCenter": 100000,
+    "priceSpread": 30,
+    "qtyMax": 300,
+    "qtyMin": 1,
+    "seed": 20260907,
+    "weightAdd": 45,
+    "weightCxl": 45,
+    "weightMkt": 5,
+    "weightMod": 5
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "load": "add_cancel_dense",
+  "comment": "Dense add/cancel churn: Add 55 / Cxl 35 keeps the book in a tight 800-1500 active band with frequent id reuse; 15% crossing. degenerateRate=0 (bench measures valid-op service time).",
+  "num_requests": 300000,
+  "seed": 20260907,
+  "weightAdd": 55,
+  "weightMod": 5,
+  "weightCxl": 35,
+  "weightMkt": 5,
+  "priceCenter": 100000,
+  "priceSpread": 400,
+  "qtyMin": 1,
+  "qtyMax": 200,
+  "activeMin": 800,
+  "activeMax": 1500,
+  "degenerateRate": 0.0,
+  "crossingRate": 0.15
+}

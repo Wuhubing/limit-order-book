@@ -1,0 +1,166 @@
+{
+  "allocation": {
+    "per_round": [
+      {
+        "alloc": {
+          "alloc_bytes": 30577440,
+          "alloc_count": 531469,
+          "freed_bytes": 20869648,
+          "live_bytes": 9707792
+        },
+        "round": 0
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 30577440,
+          "alloc_count": 531469,
+          "freed_bytes": 20869648,
+          "live_bytes": 9707792
+        },
+        "round": 1
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 30577440,
+          "alloc_count": 531469,
+          "freed_bytes": 20869648,
+          "live_bytes": 9707792
+        },
+        "round": 2
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 30577440,
+          "alloc_count": 531469,
+          "freed_bytes": 20869648,
+          "live_bytes": 9707792
+        },
+        "round": 3
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 30577440,
+          "alloc_count": 531469,
+          "freed_bytes": 20869648,
+          "live_bytes": 9707792
+        },
+        "round": 4
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 30577440,
+          "alloc_count": 531469,
+          "freed_bytes": 20869648,
+          "live_bytes": 9707792
+        },
+        "round": 5
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 30577440,
+          "alloc_count": 531469,
+          "freed_bytes": 20869648,
+          "live_bytes": 9707792
+        },
+        "round": 6
+      }
+    ],
+    "ru_maxrss_bytes": 90947584,
+    "total": {
+      "alloc_bytes": 244633728,
+      "alloc_count": 4251840,
+      "freed_bytes": 244626576,
+      "live_bytes": 7152
+    }
+  },
+  "clock_overhead_ns_per_now": 12.0525625,
+  "clock_overhead_ns_per_pair": 24.105125,
+  "corpus_num_commands": 300000,
+  "corpus_sha256": "89083b4fc9ad95e27f7b75c79eff4468f5f247ccd96a643ebddaf02fa54e3e9a",
+  "env": {
+    "build_type": "Release",
+    "clang_version_macro": "16.0.0 (clang-1600.0.26.6)",
+    "compile_date": "Sep  7 2026 20:22:18",
+    "compiler": "AppleClang 16.0.0.16000026",
+    "compiler_id_macro": "Apple LLVM 16.0.0 (clang-1600.0.26.6)",
+    "cxx_flags": " -O2 -O3 -DNDEBUG",
+    "date": "2026-09-08T00:34:54Z",
+    "git_commit": "45c2ba1d8b4f5e718c541a9b329c46b42c3304f4",
+    "host": {
+      "machine": "arm64",
+      "model": "Mac16,8",
+      "ncpu": 14,
+      "nodename": "mac",
+      "release": "25.4.0",
+      "sysname": "Darwin",
+      "version": "Darwin Kernel Version 25.4.0: Thu Mar 19 19:33:25 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_T6041"
+    }
+  },
+  "fill_event_count": 208077,
+  "fill_hash": "0xc820793c8602c414",
+  "latency": {
+    "Add": {
+      "count": 1721657,
+      "max": 38042,
+      "min": 0,
+      "p50": 917,
+      "p95": 2208,
+      "p99": 3334
+    },
+    "Cxl": {
+      "count": 293895,
+      "max": 9042,
+      "min": 0,
+      "p50": 42,
+      "p95": 1125,
+      "p99": 1292
+    },
+    "Mkt": {
+      "count": 42266,
+      "max": 16459,
+      "min": 0,
+      "p50": 916,
+      "p95": 2916,
+      "p99": 4000
+    },
+    "Mod": {
+      "count": 42182,
+      "max": 5625,
+      "min": 0,
+      "p50": 1000,
+      "p95": 2167,
+      "p99": 2875
+    },
+    "all": {
+      "count": 2100000,
+      "max": 38042,
+      "min": 0,
+      "p50": 875,
+      "p95": 2125,
+      "p99": 3291
+    }
+  },
+  "mode": "latency",
+  "rounds_measured": 7,
+  "schema_version": 1,
+  "seed": 20260907,
+  "warmup_rounds": 1,
+  "workload": {
+    "activeMax": 1500,
+    "activeMin": 800,
+    "comment": "Dense add/cancel churn: Add 55 / Cxl 35 keeps the book in a tight 800-1500 active band with frequent id reuse; 15% crossing. degenerateRate=0 (bench measures valid-op service time).",
+    "crossingRate": 0.15,
+    "degenerateRate": 0,
+    "load": "add_cancel_dense",
+    "num_requests": 300000,
+    "priceCenter": 100000,
+    "priceSpread": 400,
+    "qtyMax": 200,
+    "qtyMin": 1,
+    "seed": 20260907,
+    "weightAdd": 55,
+    "weightCxl": 35,
+    "weightMkt": 5,
+    "weightMod": 5
+  }
+}

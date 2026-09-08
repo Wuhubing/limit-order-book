@@ -1,0 +1,18 @@
+{
+  "load": "fill_dense",
+  "comment": "Fill-heavy: Mkt 35 with large qty (100-2000) at 60% crossing drives frequent multi-level fills. degenerateRate=0.",
+  "num_requests": 300000,
+  "seed": 20260907,
+  "weightAdd": 45,
+  "weightMod": 5,
+  "weightCxl": 15,
+  "weightMkt": 35,
+  "priceCenter": 100000,
+  "priceSpread": 200,
+  "qtyMin": 100,
+  "qtyMax": 2000,
+  "activeMin": 500,
+  "activeMax": 1200,
+  "degenerateRate": 0.0,
+  "crossingRate": 0.6
+}

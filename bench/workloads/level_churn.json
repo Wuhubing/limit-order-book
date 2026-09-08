@@ -1,0 +1,18 @@
+{
+  "load": "level_churn",
+  "comment": "Narrow 30-tick spread (Add 45 / Cxl 45) makes levels be constantly created and deleted; 1000-2000 active. degenerateRate=0.",
+  "num_requests": 300000,
+  "seed": 20260907,
+  "weightAdd": 45,
+  "weightMod": 5,
+  "weightCxl": 45,
+  "weightMkt": 5,
+  "priceCenter": 100000,
+  "priceSpread": 30,
+  "qtyMin": 1,
+  "qtyMax": 300,
+  "activeMin": 1000,
+  "activeMax": 2000,
+  "degenerateRate": 0.0,
+  "crossingRate": 0.25
+}

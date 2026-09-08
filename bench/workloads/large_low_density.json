@@ -1,0 +1,18 @@
+{
+  "load": "large_low_density",
+  "comment": "Large book, wide 30000-tick spread -> ~1 order per level, 6000-9000 active. degenerateRate=0.",
+  "num_requests": 300000,
+  "seed": 20260907,
+  "weightAdd": 50,
+  "weightMod": 10,
+  "weightCxl": 30,
+  "weightMkt": 10,
+  "priceCenter": 100000,
+  "priceSpread": 30000,
+  "qtyMin": 1,
+  "qtyMax": 500,
+  "activeMin": 6000,
+  "activeMax": 9000,
+  "degenerateRate": 0.0,
+  "crossingRate": 0.25
+}

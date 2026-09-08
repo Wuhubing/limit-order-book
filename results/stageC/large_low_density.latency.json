@@ -1,0 +1,166 @@
+{
+  "allocation": {
+    "per_round": [
+      {
+        "alloc": {
+          "alloc_bytes": 34435400,
+          "alloc_count": 615759,
+          "freed_bytes": 23829016,
+          "live_bytes": 10606384
+        },
+        "round": 0
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 34435400,
+          "alloc_count": 615759,
+          "freed_bytes": 23829016,
+          "live_bytes": 10606384
+        },
+        "round": 1
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 34435400,
+          "alloc_count": 615759,
+          "freed_bytes": 23829016,
+          "live_bytes": 10606384
+        },
+        "round": 2
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 34435400,
+          "alloc_count": 615759,
+          "freed_bytes": 23829016,
+          "live_bytes": 10606384
+        },
+        "round": 3
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 34435400,
+          "alloc_count": 615759,
+          "freed_bytes": 23829016,
+          "live_bytes": 10606384
+        },
+        "round": 4
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 34435400,
+          "alloc_count": 615759,
+          "freed_bytes": 23829016,
+          "live_bytes": 10606384
+        },
+        "round": 5
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 34435400,
+          "alloc_count": 615759,
+          "freed_bytes": 23829016,
+          "live_bytes": 10606384
+        },
+        "round": 6
+      }
+    ],
+    "ru_maxrss_bytes": 92569600,
+    "total": {
+      "alloc_bytes": 275497408,
+      "alloc_count": 4926160,
+      "freed_bytes": 275490256,
+      "live_bytes": 7152
+    }
+  },
+  "clock_overhead_ns_per_now": 12.3348955,
+  "clock_overhead_ns_per_pair": 24.669791,
+  "corpus_num_commands": 300000,
+  "corpus_sha256": "4ccfeb7e72bb18ffeb4b6f1726be770219c3615611841e4823faf50531de3411",
+  "env": {
+    "build_type": "Release",
+    "clang_version_macro": "16.0.0 (clang-1600.0.26.6)",
+    "compile_date": "Sep  7 2026 20:22:18",
+    "compiler": "AppleClang 16.0.0.16000026",
+    "compiler_id_macro": "Apple LLVM 16.0.0 (clang-1600.0.26.6)",
+    "cxx_flags": " -O2 -O3 -DNDEBUG",
+    "date": "2026-09-08T00:36:17Z",
+    "git_commit": "45c2ba1d8b4f5e718c541a9b329c46b42c3304f4",
+    "host": {
+      "machine": "arm64",
+      "model": "Mac16,8",
+      "ncpu": 14,
+      "nodename": "mac",
+      "release": "25.4.0",
+      "sysname": "Darwin",
+      "version": "Darwin Kernel Version 25.4.0: Thu Mar 19 19:33:25 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_T6041"
+    }
+  },
+  "fill_event_count": 220759,
+  "fill_hash": "0x4d8a4368a1d5ed3a",
+  "latency": {
+    "Add": {
+      "count": 1736686,
+      "max": 595750,
+      "min": 0,
+      "p50": 15250,
+      "p95": 35666,
+      "p99": 53250
+    },
+    "Cxl": {
+      "count": 218666,
+      "max": 170500,
+      "min": 0,
+      "p50": 17667,
+      "p95": 23834,
+      "p99": 26709
+    },
+    "Mkt": {
+      "count": 72450,
+      "max": 191292,
+      "min": 0,
+      "p50": 14792,
+      "p95": 46041,
+      "p99": 62209
+    },
+    "Mod": {
+      "count": 72198,
+      "max": 304667,
+      "min": 0,
+      "p50": 33708,
+      "p95": 44959,
+      "p99": 57584
+    },
+    "all": {
+      "count": 2100000,
+      "max": 595750,
+      "min": 0,
+      "p50": 15666,
+      "p95": 37000,
+      "p99": 52958
+    }
+  },
+  "mode": "latency",
+  "rounds_measured": 7,
+  "schema_version": 1,
+  "seed": 20260907,
+  "warmup_rounds": 1,
+  "workload": {
+    "activeMax": 9000,
+    "activeMin": 6000,
+    "comment": "Large book, wide 30000-tick spread -> ~1 order per level, 6000-9000 active. degenerateRate=0.",
+    "crossingRate": 0.25,
+    "degenerateRate": 0,
+    "load": "large_low_density",
+    "num_requests": 300000,
+    "priceCenter": 100000,
+    "priceSpread": 30000,
+    "qtyMax": 500,
+    "qtyMin": 1,
+    "seed": 20260907,
+    "weightAdd": 50,
+    "weightCxl": 30,
+    "weightMkt": 10,
+    "weightMod": 10
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "load": "large_high_density",
+  "comment": "Large book, narrow 250-tick spread -> deep queues, 6000-9000 active. degenerateRate=0.",
+  "num_requests": 300000,
+  "seed": 20260907,
+  "weightAdd": 50,
+  "weightMod": 10,
+  "weightCxl": 30,
+  "weightMkt": 10,
+  "priceCenter": 100000,
+  "priceSpread": 250,
+  "qtyMin": 1,
+  "qtyMax": 500,
+  "activeMin": 6000,
+  "activeMax": 9000,
+  "degenerateRate": 0.0,
+  "crossingRate": 0.25
+}

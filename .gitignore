@@ -8,3 +8,4 @@
 /order_processing_times.csv
 /build*/
 .agent/prompts/
+/results/stageC-compare/
