@@ -1,0 +1,130 @@
+{
+  "allocation": {
+    "per_round": [
+      {
+        "alloc": {
+          "alloc_bytes": 35667872,
+          "alloc_count": 615759,
+          "freed_bytes": 25018600,
+          "live_bytes": 10649272
+        },
+        "round": 0
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 35667872,
+          "alloc_count": 615759,
+          "freed_bytes": 25018600,
+          "live_bytes": 10649272
+        },
+        "round": 1
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 35667872,
+          "alloc_count": 615759,
+          "freed_bytes": 25018600,
+          "live_bytes": 10649272
+        },
+        "round": 2
+      }
+    ],
+    "ru_maxrss_bytes": 54263808,
+    "total": {
+      "alloc_bytes": 142677632,
+      "alloc_count": 2463075,
+      "freed_bytes": 142674512,
+      "live_bytes": 3120
+    }
+  },
+  "clock_overhead_ns_per_now": 13.0394375,
+  "clock_overhead_ns_per_pair": 26.078875,
+  "corpus_num_commands": 300000,
+  "corpus_sha256": "4ccfeb7e72bb18ffeb4b6f1726be770219c3615611841e4823faf50531de3411",
+  "env": {
+    "build_type": "Release",
+    "clang_version_macro": "16.0.0 (clang-1600.0.26.6)",
+    "compile_date": "Sep  7 2026 21:19:42",
+    "compiler": "AppleClang 16.0.0.16000026",
+    "compiler_id_macro": "Apple LLVM 16.0.0 (clang-1600.0.26.6)",
+    "cxx_flags": " -O2 -O3 -DNDEBUG",
+    "date": "2026-09-08T01:30:43Z",
+    "git_commit": "1420102ee9e3d63737dcee49b4bbf90ec7738534",
+    "host": {
+      "machine": "arm64",
+      "model": "Mac16,8",
+      "ncpu": 14,
+      "nodename": "mac",
+      "release": "25.4.0",
+      "sysname": "Darwin",
+      "version": "Darwin Kernel Version 25.4.0: Thu Mar 19 19:33:25 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_T6041"
+    }
+  },
+  "fill_event_count": 220759,
+  "fill_hash": "0x4d8a4368a1d5ed3a",
+  "latency": {
+    "Add": {
+      "count": 744294,
+      "max": 38375,
+      "min": 0,
+      "p50": 209,
+      "p95": 459,
+      "p99": 750
+    },
+    "Cxl": {
+      "count": 93714,
+      "max": 12625,
+      "min": 0,
+      "p50": 250,
+      "p95": 333,
+      "p99": 375
+    },
+    "Mkt": {
+      "count": 31050,
+      "max": 9667,
+      "min": 0,
+      "p50": 167,
+      "p95": 584,
+      "p99": 875
+    },
+    "Mod": {
+      "count": 30942,
+      "max": 11167,
+      "min": 41,
+      "p50": 417,
+      "p95": 583,
+      "p99": 708
+    },
+    "all": {
+      "count": 900000,
+      "max": 38375,
+      "min": 0,
+      "p50": 250,
+      "p95": 500,
+      "p99": 709
+    }
+  },
+  "mode": "latency",
+  "rounds_measured": 3,
+  "schema_version": 1,
+  "seed": 20260907,
+  "warmup_rounds": 1,
+  "workload": {
+    "activeMax": 9000,
+    "activeMin": 6000,
+    "comment": "Large book, wide 30000-tick spread -> ~1 order per level, 6000-9000 active. degenerateRate=0.",
+    "crossingRate": 0.25,
+    "degenerateRate": 0,
+    "load": "large_low_density",
+    "num_requests": 300000,
+    "priceCenter": 100000,
+    "priceSpread": 30000,
+    "qtyMax": 500,
+    "qtyMin": 1,
+    "seed": 20260907,
+    "weightAdd": 50,
+    "weightCxl": 30,
+    "weightMkt": 10,
+    "weightMod": 10
+  }
+}

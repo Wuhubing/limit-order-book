@@ -1,0 +1,136 @@
+{
+  "allocation": {
+    "per_round": [
+      {
+        "alloc": {
+          "alloc_bytes": 29527192,
+          "alloc_count": 507601,
+          "freed_bytes": 19919320,
+          "live_bytes": 9607872
+        },
+        "round": 0
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 29527192,
+          "alloc_count": 507601,
+          "freed_bytes": 19919320,
+          "live_bytes": 9607872
+        },
+        "round": 1
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 29527192,
+          "alloc_count": 507601,
+          "freed_bytes": 19919320,
+          "live_bytes": 9607872
+        },
+        "round": 2
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 29527192,
+          "alloc_count": 507601,
+          "freed_bytes": 19919320,
+          "live_bytes": 9607872
+        },
+        "round": 3
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 29527192,
+          "alloc_count": 507601,
+          "freed_bytes": 19919320,
+          "live_bytes": 9607872
+        },
+        "round": 4
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 29527192,
+          "alloc_count": 507601,
+          "freed_bytes": 19919320,
+          "live_bytes": 9607872
+        },
+        "round": 5
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 29527192,
+          "alloc_count": 507601,
+          "freed_bytes": 19919320,
+          "live_bytes": 9607872
+        },
+        "round": 6
+      }
+    ],
+    "ru_maxrss_bytes": 38617088,
+    "total": {
+      "alloc_bytes": 236231800,
+      "alloc_count": 4060897,
+      "freed_bytes": 236224648,
+      "live_bytes": 7152
+    }
+  },
+  "corpus_num_commands": 300000,
+  "corpus_sha256": "662a1eabaaa618717efe577189f7606d85e809c604e1dc55df207c88235939b0",
+  "env": {
+    "build_type": "Release",
+    "clang_version_macro": "16.0.0 (clang-1600.0.26.6)",
+    "compile_date": "Sep  7 2026 21:28:06",
+    "compiler": "AppleClang 16.0.0.16000026",
+    "compiler_id_macro": "Apple LLVM 16.0.0 (clang-1600.0.26.6)",
+    "cxx_flags": " -O2 -O3 -DNDEBUG",
+    "date": "2026-09-08T01:28:17Z",
+    "git_commit": "05b4273e6c05beda65d14a122e5d0c8262c23556",
+    "host": {
+      "machine": "arm64",
+      "model": "Mac16,8",
+      "ncpu": 14,
+      "nodename": "mac",
+      "release": "25.4.0",
+      "sysname": "Darwin",
+      "version": "Darwin Kernel Version 25.4.0: Thu Mar 19 19:33:25 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_T6041"
+    }
+  },
+  "fill_event_count": 214197,
+  "fill_hash": "0x9bdd5b90a3dee627",
+  "mode": "batch",
+  "reqs_per_sec_all_ops": 7279339.610545902,
+  "round_time_sec_max": 0.041679833,
+  "round_time_sec_mean": 0.04121252971428572,
+  "round_time_sec_median": 0.041424833,
+  "round_time_sec_min": 0.04060575,
+  "round_times_sec": [
+    0.040817084,
+    0.04060575,
+    0.040964167,
+    0.041493958,
+    0.041502083,
+    0.041679833,
+    0.041424833
+  ],
+  "rounds_measured": 7,
+  "schema_version": 1,
+  "seed": 20260907,
+  "warmup_rounds": 1,
+  "workload": {
+    "activeMax": 120,
+    "activeMin": 60,
+    "comment": "Small book, narrow 20-tick spread -> deep queues, 60-120 active. degenerateRate=0.",
+    "crossingRate": 0.25,
+    "degenerateRate": 0,
+    "load": "small_high_density",
+    "num_requests": 300000,
+    "priceCenter": 100000,
+    "priceSpread": 20,
+    "qtyMax": 500,
+    "qtyMin": 1,
+    "seed": 20260907,
+    "weightAdd": 50,
+    "weightCxl": 30,
+    "weightMkt": 10,
+    "weightMod": 10
+  }
+}

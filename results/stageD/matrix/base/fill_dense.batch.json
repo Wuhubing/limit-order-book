@@ -1,0 +1,136 @@
+{
+  "allocation": {
+    "per_round": [
+      {
+        "alloc": {
+          "alloc_bytes": 32751672,
+          "alloc_count": 582578,
+          "freed_bytes": 23092824,
+          "live_bytes": 9658848
+        },
+        "round": 0
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 32751672,
+          "alloc_count": 582578,
+          "freed_bytes": 23092824,
+          "live_bytes": 9658848
+        },
+        "round": 1
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 32751672,
+          "alloc_count": 582578,
+          "freed_bytes": 23092824,
+          "live_bytes": 9658848
+        },
+        "round": 2
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 32751672,
+          "alloc_count": 582578,
+          "freed_bytes": 23092824,
+          "live_bytes": 9658848
+        },
+        "round": 3
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 32751672,
+          "alloc_count": 582578,
+          "freed_bytes": 23092824,
+          "live_bytes": 9658848
+        },
+        "round": 4
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 32751672,
+          "alloc_count": 582578,
+          "freed_bytes": 23092824,
+          "live_bytes": 9658848
+        },
+        "round": 5
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 32751672,
+          "alloc_count": 582578,
+          "freed_bytes": 23092824,
+          "live_bytes": 9658848
+        },
+        "round": 6
+      }
+    ],
+    "ru_maxrss_bytes": 39305216,
+    "total": {
+      "alloc_bytes": 262027640,
+      "alloc_count": 4660713,
+      "freed_bytes": 262020488,
+      "live_bytes": 7152
+    }
+  },
+  "corpus_num_commands": 300000,
+  "corpus_sha256": "210cad9e6373ec213717a71bfcdbfade944afbdf180a34575758eaa58d1bbed2",
+  "env": {
+    "build_type": "Release",
+    "clang_version_macro": "16.0.0 (clang-1600.0.26.6)",
+    "compile_date": "Sep  7 2026 21:28:06",
+    "compiler": "AppleClang 16.0.0.16000026",
+    "compiler_id_macro": "Apple LLVM 16.0.0 (clang-1600.0.26.6)",
+    "cxx_flags": " -O2 -O3 -DNDEBUG",
+    "date": "2026-09-08T01:28:13Z",
+    "git_commit": "05b4273e6c05beda65d14a122e5d0c8262c23556",
+    "host": {
+      "machine": "arm64",
+      "model": "Mac16,8",
+      "ncpu": 14,
+      "nodename": "mac",
+      "release": "25.4.0",
+      "sysname": "Darwin",
+      "version": "Darwin Kernel Version 25.4.0: Thu Mar 19 19:33:25 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_T6041"
+    }
+  },
+  "fill_event_count": 263510,
+  "fill_hash": "0x2099e65891f89d38",
+  "mode": "batch",
+  "reqs_per_sec_all_ops": 1862429.5682127858,
+  "round_time_sec_max": 0.162007042,
+  "round_time_sec_mean": 0.16107991685714285,
+  "round_time_sec_median": 0.160764792,
+  "round_time_sec_min": 0.160085083,
+  "round_times_sec": [
+    0.160085083,
+    0.161822167,
+    0.160683959,
+    0.161728292,
+    0.162007042,
+    0.160764792,
+    0.160468083
+  ],
+  "rounds_measured": 7,
+  "schema_version": 1,
+  "seed": 20260907,
+  "warmup_rounds": 1,
+  "workload": {
+    "activeMax": 1200,
+    "activeMin": 500,
+    "comment": "Fill-heavy: Mkt 35 with large qty (100-2000) at 60% crossing drives frequent multi-level fills. degenerateRate=0.",
+    "crossingRate": 0.6,
+    "degenerateRate": 0,
+    "load": "fill_dense",
+    "num_requests": 300000,
+    "priceCenter": 100000,
+    "priceSpread": 200,
+    "qtyMax": 2000,
+    "qtyMin": 100,
+    "seed": 20260907,
+    "weightAdd": 45,
+    "weightCxl": 15,
+    "weightMkt": 35,
+    "weightMod": 5
+  }
+}

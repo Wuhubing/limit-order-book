@@ -1,0 +1,130 @@
+{
+  "allocation": {
+    "per_round": [
+      {
+        "alloc": {
+          "alloc_bytes": 18534152,
+          "alloc_count": 265752,
+          "freed_bytes": 8484896,
+          "live_bytes": 10049256
+        },
+        "round": 0
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 18534152,
+          "alloc_count": 265752,
+          "freed_bytes": 8484896,
+          "live_bytes": 10049256
+        },
+        "round": 1
+      },
+      {
+        "alloc": {
+          "alloc_bytes": 18534152,
+          "alloc_count": 265752,
+          "freed_bytes": 8484896,
+          "live_bytes": 10049256
+        },
+        "round": 2
+      }
+    ],
+    "ru_maxrss_bytes": 52461568,
+    "total": {
+      "alloc_bytes": 74142752,
+      "alloc_count": 1063047,
+      "freed_bytes": 74139632,
+      "live_bytes": 3120
+    }
+  },
+  "clock_overhead_ns_per_now": 12.6684585,
+  "clock_overhead_ns_per_pair": 25.336917,
+  "corpus_num_commands": 300000,
+  "corpus_sha256": "89083b4fc9ad95e27f7b75c79eff4468f5f247ccd96a643ebddaf02fa54e3e9a",
+  "env": {
+    "build_type": "Release",
+    "clang_version_macro": "16.0.0 (clang-1600.0.26.6)",
+    "compile_date": "Sep  7 2026 21:29:24",
+    "compiler": "AppleClang 16.0.0.16000026",
+    "compiler_id_macro": "Apple LLVM 16.0.0 (clang-1600.0.26.6)",
+    "cxx_flags": " -O2 -O3 -DNDEBUG",
+    "date": "2026-09-08T01:29:28Z",
+    "git_commit": "f7e8b9c0229b77ea908dc968042537a2e32c75ac",
+    "host": {
+      "machine": "arm64",
+      "model": "Mac16,8",
+      "ncpu": 14,
+      "nodename": "mac",
+      "release": "25.4.0",
+      "sysname": "Darwin",
+      "version": "Darwin Kernel Version 25.4.0: Thu Mar 19 19:33:25 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_T6041"
+    }
+  },
+  "fill_event_count": 208077,
+  "fill_hash": "0xc820793c8602c414",
+  "latency": {
+    "Add": {
+      "count": 737853,
+      "max": 41750,
+      "min": 0,
+      "p50": 1000,
+      "p95": 2458,
+      "p99": 3791
+    },
+    "Cxl": {
+      "count": 125955,
+      "max": 10375,
+      "min": 0,
+      "p50": 42,
+      "p95": 1250,
+      "p99": 1458
+    },
+    "Mkt": {
+      "count": 18114,
+      "max": 11250,
+      "min": 0,
+      "p50": 1000,
+      "p95": 3209,
+      "p99": 4459
+    },
+    "Mod": {
+      "count": 18078,
+      "max": 10167,
+      "min": 0,
+      "p50": 1125,
+      "p95": 2458,
+      "p99": 3209
+    },
+    "all": {
+      "count": 900000,
+      "max": 41750,
+      "min": 0,
+      "p50": 958,
+      "p95": 2375,
+      "p99": 3708
+    }
+  },
+  "mode": "latency",
+  "rounds_measured": 3,
+  "schema_version": 1,
+  "seed": 20260907,
+  "warmup_rounds": 1,
+  "workload": {
+    "activeMax": 1500,
+    "activeMin": 800,
+    "comment": "Dense add/cancel churn: Add 55 / Cxl 35 keeps the book in a tight 800-1500 active band with frequent id reuse; 15% crossing. degenerateRate=0 (bench measures valid-op service time).",
+    "crossingRate": 0.15,
+    "degenerateRate": 0,
+    "load": "add_cancel_dense",
+    "num_requests": 300000,
+    "priceCenter": 100000,
+    "priceSpread": 400,
+    "qtyMax": 200,
+    "qtyMin": 1,
+    "seed": 20260907,
+    "weightAdd": 55,
+    "weightCxl": 35,
+    "weightMkt": 5,
+    "weightMod": 5
+  }
+}
