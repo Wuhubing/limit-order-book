@@ -51,8 +51,9 @@ jobs:
           done
 
       # Deterministic output: replay the same corpus twice and diff the records.
+      # (Runner /tmp is not writable — use the build dir.)
       - name: Replay determinism smoke
         run: |
-          ./build/tools/replay --replay testdata/corpora/mix-heavy.txt > /tmp_a.txt 2>/dev/null || true
-          ./build/tools/replay --replay testdata/corpora/mix-heavy.txt > /tmp_b.txt 2>/dev/null || true
-          diff /tmp_a.txt /tmp_b.txt
+          ./build/tools/replay --replay testdata/corpora/mix-heavy.txt > build/det_a.txt
+          ./build/tools/replay --replay testdata/corpora/mix-heavy.txt > build/det_b.txt
+          diff build/det_a.txt build/det_b.txt
