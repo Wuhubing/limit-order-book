@@ -35,6 +35,7 @@ Scope note: portfolio research scope = limit/market/cancel/modify + FIFO price-t
 - #12 events/state introspection: ADDED — FillEvent sink + snapshot()/LevelState/OrderState + Order::getNextOrder (commit d5e8061), covered by FillEventsCorrect / SnapshotMatchesState / NullFillSinkIsSafe.
 - #14 build: FIXED in LOB-001 (googletest FetchContent bootstrap).
 Evidence: LimitOrderBookTests 123/123 (Release + UBSan), EngineCorrectnessTests 18/18 (Release + UBSan), verify.py 8/8.
+- LOB-003 (merged 9571fa8): independent reference model (reference/, std-map/deque oracle, no engine headers) + DifferentialHarness comparing FILL STREAMS and full book state after EVERY request + I1-I7 invariant checker + greedy minimizer + 20 seeds x 2000 requests fuzz + 3 committed corpora + tools/diff_fuzz replay CLI (exit 0/1/2). Result: ZERO divergence between engine v1 and reference across all differential runs; DeterminismTests/DifferentialTests 19/19 Release + UBSan; no failing seed exists to minimize. Engine correctness is now pinned by independent oracle, not just self-tests.
 
 ## Baseline rules (decided, control plane)
 - Correctness fixes land ONLY with a reproducing test committed first (separate commits).
