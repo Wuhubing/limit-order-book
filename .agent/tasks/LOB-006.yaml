@@ -1,0 +1,132 @@
+task_id: LOB-006
+
+goal: |
+  Stage D, experiment B (direction 2: price-level structure / the balance-cost
+  hotspot) — eliminate the recursive full-subtree height recomputation in the AVL
+  balance path by caching per-node heights (or balance factors), updated in O(1)
+  during inserts, the classic AVL delete rework, and every rotation (limit AND
+  stop trees). ENGINE SEMANTICS FROZEN: all suites (upstream 123, engine 18,
+  differential 19 incl. I1-I7 — I6 verifies AVL balance by recomputing TRUE
+  heights recursively and independently, so any height-cache drift is caught) must
+  stay green and untouched; canonical corpora unchanged. Deliverable: the cached-
+  height implementation + measured effect + honest limits.
+
+context: |
+  YOUR WORKING ROOT IS THE WORKTREE. Relative paths only; never the parent repo
+  path; never /tmp. BUILD: export PATH="/opt/homebrew/bin:$PATH" && cmake -B build
+  -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8. Test binaries
+  under build/test/. This worktree is based on main AFTER LOB-005 (object pools)
+  merged — the engine now allocates Orders/Limits through Book-owned slab pools;
+  do not disturb that. Bench: build/bench/lob_bench (regenerate corpora you need
+  under build/benchdata/ with `gen` — same seeds => identical sha256 as the
+  committed results/stageC dataset; the large_* corpora take ~4 min to generate,
+  include at least large_low_density because it is the pathological load for this
+  experiment).
+
+  PROFILING EVIDENCE (Hermes, macOS `sample`, 6s, Release -O2, Apple M4 Pro):
+  - large_low_density (~30k price levels; 60K req/s, Add p50 ~15us): recursive
+    Book::getLimitHeight 59% of samples (16,803/28,504), reached from
+    balance()/insert()/rebalanceUpward()/deleteLimit().
+  - add_cancel_dense (1.26M req/s): getLimitHeight 42% (2,556/6,078).
+  Root cause (docs/issues-register.md #8, confirmed): AVL balance factors/heights
+  are NOT stored; every balance() call recomputes subtree heights via
+  getLimitHeight (full recursion over the subtree), so each insert/delete
+  rebalance step is O(subtree) — with tens of thousands of levels this dominates
+  everything. This experiment removes that cost; expected large gains on the
+  low-density/large-tree loads and moderate gains elsewhere.
+
+  DESIGN SPEC:
+  - Add a cached height to each Limit node (Limit.hpp: e.g. `int height;` set to 1
+    in the constructor; children null => height 0). Provide
+    heightOf(Limit*) -> int (nullptr => 0) and refresh(node) = 1+max(left,right)
+    helpers in Book.cpp. Replace limitHeightDifference()'s recursive
+    getLimitHeight calls with cached values.
+  - Maintain the cache at EVERY mutation point (miss any and the tree silently
+    degrades — the I6 invariant in DifferentialTests is the backstop, but you must
+    reason through each path):
+    (a) insert(): after the recursive child insert and before/after balance(),
+        refresh the node (classic bottom-up update);
+    (b) every rotation (ll/rr/lr/rl and the Stop twins): refresh the two rotated
+        nodes in the correct order (children first);
+    (c) deleteLimit()/deleteStopLevel(): after the successor splice and child
+        relink, refresh every node whose subtree changed — the successor's old
+        parent chain, the replacement node (successor), and then the existing
+        rebalanceUpward walk must refresh each visited node after balance();
+    (d) rebalanceUpward/rebalanceUpwardStop: refresh node after balance() rotates.
+    balance() keeps its existing rotation-selection logic but reads cached heights;
+    AVLTreeBalanceCount behavior (increment per rotation) must stay identical.
+  - Keep Book::getLimitHeight as-is (public API + used by tests/harness to check
+    true structure — do not change its recursion). The engine internals must not
+    call it on hot paths anymore; grep to prove balance()/limitHeightDifference()
+    no longer recurse.
+  - Do not change the public API, FillEvent/snapshot output, semantics, or the
+    pool allocator behavior from LOB-005. Stop trees get the same treatment.
+  - Edge cases to think through and pin with tests where missing: deleting the
+    root, deleting with successor == direct right child (the rebalance-start-at-
+    successor case from LOB-002), single-child deletions, rotations after
+    deletions at depth, tall alternating add/delete ladders (level churn).
+    EngineCorrectnessTests may be extended (scope allows test additions in this
+    task ONLY for height-cache-specific regressions).
+  - Measure & record: bench batch+latency on fill_dense, add_cancel_dense,
+    level_churn, and large_low_density (+ optional large_high_density), before
+    (baseline = results/stageC committed numbers on this machine, or re-run
+    baseline at the pre-change commit if you need matched-environment numbers —
+    prefer re-running both at the same commit pair A/B on this machine for a fair
+    delta) and after. Write raw JSONs to results/stageD/ (committed) and a short
+    results/stageD/README.md with the delta table. Honesty rules: report every
+    load, including any regression; quote only measured numbers; state run-to-run
+    variance source (rounds>=7, batch mode).
+
+worker:
+  type: deep
+
+scope:
+  allowed:
+    - Limit_Order_Book/Book.hpp
+    - Limit_Order_Book/Book.cpp
+    - Limit_Order_Book/Limit.hpp
+    - Limit_Order_Book/Limit.cpp
+    - test/EngineCorrectnessTests.cpp
+    - test/CMakeLists.txt
+    - results/stageD/**
+  forbidden:
+    - reference/**
+    - tools/**
+    - test/LimitOrderBookTests.cpp
+    - test/ExampleOrdersTests.cpp
+    - test/DifferentialTests.cpp
+    - bench/**
+    - scripts/**
+    - Process_Orders/**
+    - Generate_Orders/**
+    - main.cpp
+    - .agent/**
+    - docs/**
+
+constraints:
+  - Zero behavior change to public API, semantics.md semantics, fill events, snapshot output, or pool allocator behavior
+  - Engine hot paths must stop calling recursive getLimitHeight (grep-clean); getLimitHeight itself stays for tests/harness
+  - AVLTreeBalanceCount rotation-counting behavior unchanged
+  - I6 (true-height AVL check in DifferentialTests) must pass on every differential run — it is the cache-drift backstop
+  - Existing suites green untouched (except the allowed EngineCorrectnessTests additions)
+
+acceptance:
+  - All suites pass under Release and UBSan, including the full differential fuzz with I6
+  - balance()/limitHeightDifference()/rebalance paths use cached heights (no recursion on hot paths)
+  - Height cache maintained across insert/delete/rotate paths incl. the successor==right-child delete case and stop trees
+  - Bench deltas recorded for >=4 loads (incl. large_low_density) in results/stageD/ with raw JSONs committed
+  - Honest statement: per-load measured deltas and any regression noted
+
+verification:
+  - export PATH="/opt/homebrew/bin:$PATH" && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build -j8
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/LimitOrderBookTests --gtest_color=no > .agent/results/LOB-006-upstream.log 2>&1; echo "upstream exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/EngineCorrectnessTests --gtest_color=no > .agent/results/LOB-006-engine.log 2>&1; echo "engine exit=$?"'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build/test/DifferentialTests --gtest_color=no > .agent/results/LOB-006-diff.log 2>&1; echo "diff exit=$?"'
+  - 'grep -n "getLimitHeight" Limit_Order_Book/Book.cpp | grep -vE "int Book::getLimitHeight|^.*getLimitHeight\(Limit\* limit\) const" | head -5'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; cmake -B build-ubsan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=undefined -fno-omit-frame-pointer" && cmake --build build-ubsan -j8 > /dev/null 2>&1'
+  - 'export PATH="/opt/homebrew/bin:$PATH"; ./build-ubsan/test/DifferentialTests --gtest_color=no > .agent/results/LOB-006-diff-ubsan.log 2>&1; echo "ubsan-diff exit=$?"'
+  - git log --oneline -3
+
+risk: high
+timeout_min: 150
+max_attempts: 2
